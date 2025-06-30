@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
 # chase/cli.py
 
 import argparse
+import os
 from chase.core import (
     load_fits_from_url_or_txt,
     run_pipeline,
@@ -9,10 +9,8 @@ from chase.core import (
 )
 
 def main():
-    # Print banner
     print(TERMINAL_BANNER)
 
-    # Set up CLI arguments
     parser = argparse.ArgumentParser(
         description="CHASE H-alpha FITS Calibration Pipeline"
     )
@@ -26,7 +24,11 @@ def main():
     )
     parser.add_argument(
         "--save", "-s", action="store_true",
-        help="Save diagnostic plots (QS spectrum, sub-FOV slice) as PNGs"
+        help="Save diagnostic plots (QS spectrum, sub-FOV slice, etc.)"
+    )
+    parser.add_argument(
+        "--fig-dir", default="./figures",
+        help="Directory to store output figures (default: ./figures)"
     )
     parser.add_argument("--no-spatial", action="store_true",
                         help="Skip spatial calibration")
@@ -61,12 +63,10 @@ def main():
 
     args = parser.parse_args()
 
-    # Download FITS files
     fits_files = load_fits_from_url_or_txt(args.input, args.output)
     if not fits_files:
         parser.error("No FITS files could be downloaded or found.")
 
-    # Run the pipeline on each file
     for fits_file in fits_files:
         run_pipeline(
             fits_file,
@@ -76,6 +76,7 @@ def main():
             do_intensity = not args.no_intensity,
             do_fov       = not args.no_fov,
             save_figs    = args.save,
+            fig_dir= args.fig_dir,
             threshold_ratio   = args.threshold,
             subpixel_accuracy = args.accuracy,
             qs_box_size       = args.qsbox,

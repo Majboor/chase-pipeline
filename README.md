@@ -52,17 +52,20 @@ python main.py --input fits_list.txt --output ./downloads
 
 ```bash
 --input           Path to FITS URL or .txt list of URLs  
---output          Output directory for downloaded + processed files  
+--output          Directory where FITS files will be downloaded (default: ./downloads)  
 --threshold       Brightness threshold for disk detection (default: 0.2)  
---qs_box_size     Quiet Sun box size (default: 100)  
---fov_width       Field of view width in pixels (default: 300)  
---fov_height      Field of view height in pixels (default: 300)  
+--accuracy        Upsample factor for subpixel alignment (default: 100)  
+--qsbox           Quiet Sun box size for spectral calibration (default: 100)  
+--fov-width       Field of view width in pixels (default: 300)  
+--fov-height      Field of view height in pixels (default: 300)  
 --no-spatial      Skip spatial calibration  
 --no-subpixel     Skip subpixel alignment  
 --no-spectral     Skip spectral calibration  
 --no-intensity    Skip intensity normalization  
---no-fov          Skip subregion cropping  
---save-figs       Save diagnostic plots  
+--no-fov          Skip sub-FOV extraction  
+--save            Save all diagnostic plots (e.g., QS profile, intensity maps)  
+--fig-dir         Output directory for saved figures (default: ./figures)  
+
 ```
 
 ---

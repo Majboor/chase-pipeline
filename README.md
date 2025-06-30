@@ -24,7 +24,7 @@ It includes **spatial**, **spectral**, **intensity**, and **field-of-view** cali
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/yourname/chase-pipeline.git
+git clone https://github.com/Majboor/chase-pipeline
 cd chase-pipeline
 ````
 

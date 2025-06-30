@@ -3,6 +3,13 @@ core.py — CHASE Satellite Calibration Core Module
 Handles downloading, calibration steps, and utility functions.
 """
 
+TERMINAL_BANNER = """
+============================================================
+        🌞  CHASE Satellite Data Calibration Pipeline  🌞
+============================================================
+Terminal module containing core calibration logic for H-alpha data.
+"""
+
 import os
 import time
 import numpy as np

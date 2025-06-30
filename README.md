@@ -80,6 +80,58 @@ tutorial.ipynb
 
 ---
 
+Here is the updated `README.md` section with a link to `docs.md` for full documentation:
+
+---
+
+## 🧪 Python Module Usage
+
+You can also use the CHASE calibration pipeline as a Python **library** in notebooks, scripts, or your own applications.
+
+### 🔹 Example Usage
+
+```python
+from chase.core import run_pipeline
+
+run_pipeline(
+    fits_file = "./downloads/RSM20250501T233548_0000_FE.fits",
+    do_spatial   = True,
+    do_subpixel  = True,
+    do_spectral  = True,
+    do_intensity = True,
+    do_fov       = True,
+    save_figs    = True,
+    fig_dir      = "./figures",
+    threshold_ratio   = 0.2,
+    subpixel_accuracy = 100,
+    qs_box_size       = 100,
+    fov_width         = 300,
+    fov_height        = 300
+)
+```
+
+### 🧠 Modular Functions
+
+You can also call individual steps directly:
+
+```python
+from chase.core import (
+    load_fits_data,
+    recenter_image_cube,
+    align_subpixel,
+    extract_qs_region,
+    calibrate_wavelength,
+    normalize_intensity,
+    extract_subregion
+)
+```
+
+### 📄 Full API Documentation
+
+For a complete breakdown of each function, parameters, and advanced examples, refer to the [📘 `docs.md`](./DOCS.md) file.
+
+---
+
 ## 📸 Output Visuals (Diagnostics)
 
 Below are sample outputs saved during a typical run with `--save-figs`:

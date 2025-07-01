@@ -1,6 +1,7 @@
 # 🌞 CHASE Satellite Data Calibration Pipeline
 
-![CHASE Pipeline Demo](./assets/tutorial.gif)
+![CHASE Pipeline Demo](https://raw.githubusercontent.com/Majboor/chase-pipeline/main/assets/tutorial.gif)
+
 
 The **CHASE Calibration Pipeline** is a terminal-based Python toolkit for downloading and processing solar flare data from the [Chinese Hα Solar Explorer (CHASE)](https://ssdc.nju.edu.cn).  
 It includes **spatial**, **spectral**, **intensity**, and **field-of-view** calibration steps.

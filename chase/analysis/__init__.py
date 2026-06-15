@@ -7,6 +7,7 @@ from .temperature import (
     fe_voigt_temperature,
     halpha_width_map,
     halpha_width_temperature,
+    measure_halpha_width,
     width_to_temperature,
 )
 
@@ -14,6 +15,7 @@ __all__ = [
     "contrast_profile",
     "halpha_width_map",
     "halpha_width_temperature",
+    "measure_halpha_width",
     "width_to_temperature",
     "fe_planck_temperature",
     "fe_eb_temperature",

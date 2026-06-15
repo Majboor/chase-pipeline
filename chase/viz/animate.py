@@ -33,6 +33,7 @@ def make_animation(
     fps: int = 4,
     cmap: str = "hot",
     freeze_clim: bool = False,
+    clip_percentile: float = 99.5,
     titles=("Photosphere", "Chromosphere"),
 ) -> str:
     """2-panel Photosphere | Chromosphere GIF from aligned summary frames.
@@ -52,7 +53,14 @@ def make_animation(
     cmap : str, optional
     freeze_clim : bool, optional
         Fix colour limits across frames (default False = per-frame autoscale).
-    titles : (str, str), optional
+    clip_percentile : float, optional
+        Upper percentile used for the colour limit instead of the absolute
+        maximum (default 99.5). A bright flare kernel or a cosmic-ray spike on a
+        single frame contains a handful of pixels far brighter than everything
+        else; scaling to the raw ``max`` then crushes the rest of that frame to a
+        dark, "broken"-looking block. Clipping ``vmax`` to a high percentile keeps
+        every frame's structure visible without special-casing any frame. Set to
+        ``100`` to recover the old absolute-max behaviour.
 
     Returns
     -------
@@ -66,9 +74,12 @@ def make_animation(
     extent = _extent(patch)
     times = list(times) if times is not None else [f"Frame {i}" for i in range(nframes)]
 
+    def _hi(arr):
+        return np.nanpercentile(arr, clip_percentile) if clip_percentile < 100 else np.nanmax(arr)
+
     if freeze_clim:
-        c_lo, c_hi = np.nanmin(cont), np.nanmax(cont)
-        k_lo, k_hi = np.nanmin(core), np.nanmax(core)
+        c_lo, c_hi = np.nanmin(cont), _hi(cont)
+        k_lo, k_hi = np.nanmin(core), _hi(core)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6), facecolor="white")
     im1 = ax1.imshow(cont[0], cmap=cmap, origin="lower", extent=extent)
@@ -87,8 +98,8 @@ def make_animation(
             im1.set_clim(c_lo, c_hi)
             im2.set_clim(k_lo, k_hi)
         else:
-            im1.set_clim(np.nanmin(cont[i]), np.nanmax(cont[i]))
-            im2.set_clim(np.nanmin(core[i]), np.nanmax(core[i]))
+            im1.set_clim(np.nanmin(cont[i]), _hi(cont[i]))
+            im2.set_clim(np.nanmin(core[i]), _hi(core[i]))
         suptitle.set_text(f"{times[i]}  —  Frame {i}")
         return im1, im2, suptitle
 

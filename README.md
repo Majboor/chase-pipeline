@@ -1,191 +1,172 @@
-# 🌞 CHASE Satellite Data Calibration Pipeline
+# chase-pipeline
 
-![CHASE Pipeline Demo](https://raw.githubusercontent.com/Majboor/chase-pipeline/main/assets/tutorial.gif)
+**A modular calibration and flare-analysis pipeline for CHASE / HIS solar spectroscopy — with a TUI, a Python SDK, and a one-file config workflow.**
 
+[![tests](https://github.com/Majboor/chase-pipeline/actions/workflows/test.yml/badge.svg)](https://github.com/Majboor/chase-pipeline/actions/workflows/test.yml)
+![python](https://img.shields.io/badge/python-3.9%2B-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
 
-The **CHASE Calibration Pipeline** is a terminal-based Python toolkit for downloading and processing solar flare data from the [Chinese Hα Solar Explorer (CHASE)](https://ssdc.nju.edu.cn).  
-It includes **spatial**, **spectral**, **intensity**, and **field-of-view** calibration steps.
+CHASE (the **Chinese Hα Solar Explorer**) scans the full solar disk in Hα (118
+wavelengths, 6559.4–6565.1 Å) and Fe I (46 wavelengths, ~6569 Å). The raw data is
+scientifically rich but awkward to use — every frame drifts spatially *and*
+spectrally, and turning a stack of `RSM…_HA.fits` cubes into a clean, aligned,
+calibrated data product takes a lot of careful work. `chase-pipeline` does that
+work for you, and lets you do as much or as little of it as you want.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/flare.gif" width="760" alt="Stabilised 2-panel animation of the 2023-03-29 X2.1 flare"><br>
+  <em>The 2023-03-29 <strong>X2.1</strong> flare, stabilised by this pipeline:
+  photosphere (Hα continuum) | chromosphere (Hα core). 25 frames, frozen colour limits.</em>
+</p>
 
 ---
 
-## 📦 Features
+## Why this exists (statement of need)
 
-- ✅ Download FITS files directly or from a list (`.txt`)  
-- ✅ Resume interrupted downloads with progress bar  
-- ✅ Spatial calibration (disk center detection + recentering)  
-- ✅ Sub-pixel image alignment using Fourier shift  
-- ✅ Spectral calibration from QS profile  
-- ✅ Intensity normalization and FOV extraction  
-- ✅ CLI or importable Python API
+CHASE data is under-used because it is hard to use: the portal ships full-disk
+cubes with no co-alignment, a per-frame wavelength zero-point that drifts by ~0.8
+channels, and no turnkey way to extract a science-ready region. Existing scripts
+(including the original `chase-pipeline` and Finlay Davis's `satprocess`) each
+solved part of the problem. **This package unifies them into one installable
+tool** that:
 
----
+- **just works for the lazy user** — point at a folder, set a field of view and a
+  few true/false flags in a text file (or use the TUI), run once, get an aligned
+  **FITS/npz cube + images/GIF** out;
+- **stays hackable for the power user** — every stage is an importable function
+  (`import chase`), nothing is a forced monolithic pipeline;
+- **preserves the physics** — shift-then-crop tracking, per-frame wavelength
+  resampling, flare-free alignment, absolute atlas calibration, and the correct
+  temperature inversions per line (it does not "simplify away" the hard-won fixes).
 
-## 🚀 Quick Start
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1XSw8wow6hUDY-z8HOUtTTFK_kNtv7uj2?usp=sharing)
-
-### 1. Clone the repo
-```bash
-git clone https://github.com/Majboor/chase-pipeline
-cd chase-pipeline
-````
-
-### 2. Install dependencies
+## Install
 
 ```bash
-pip install -r requirements.txt
+pip install -e .                 # core
+pip install -e '.[tui]'          # + Textual TUI  (chase-tui)
+pip install -e '.[atlas]'        # + ISPy for absolute Fe I temperature calibration
+pip install -e '.[all]'          # everything, incl. test deps
 ```
 
-### 3. Run from command line
+## Three ways to use it
+
+### 1. TUI — interactive, no flags to memorise
 
 ```bash
-python main.py --input "https://ssdc.nju.edu.cn/chase/2025/5/1/your_fits_file.fits?...sig..." --output ./downloads --save-figs
+chase-tui
 ```
 
-OR pass a `.txt` file with multiple URLs:
+<p align="center">
+  <img src="assets/tui_screenshot.png" width="760" alt="chase-tui screenshot">
+</p>
+
+Pick a data source, enter a full FOV or an arbitrary patch (and a separate, smaller
+*alignment* patch if you want), tick the calibrations you want, and hit **Run** —
+live progress streams into the log pane. The TUI is a thin front-end over the SDK;
+it duplicates no logic.
+
+### 2. Config file — the "lazy" one-shot workflow
 
 ```bash
-python main.py --input fits_list.txt --output ./downloads
+chase --config examples/config.toml
 ```
 
----
+```toml
+# examples/config.toml
+fits_dir = "/data/20230329_X12/fits"
+out_dir  = "./chase_out"
+patch    = [940, 1080, 1870, 2040]   # [y0, y1, x0, x1]; omit + full_fov=true for whole disk
+contrast = true
+temperature = "double"               # halpha + fe_planck
+gif = true
+freeze_clim = true
+```
 
-## ⚙️ CLI Arguments
+### 3. CLI — explicit flags (backward compatible)
 
 ```bash
---input           Path to FITS URL or .txt list of URLs  
---output          Directory where FITS files will be downloaded (default: ./downloads)  
---threshold       Brightness threshold for disk detection (default: 0.2)  
---accuracy        Upsample factor for subpixel alignment (default: 100)  
---qsbox           Quiet Sun box size for spectral calibration (default: 100)  
---fov-width       Field of view width in pixels (default: 300)  
---fov-height      Field of view height in pixels (default: 300)  
---no-spatial      Skip spatial calibration  
---no-subpixel     Skip subpixel alignment  
---no-spectral     Skip spectral calibration  
---no-intensity    Skip intensity normalization  
---no-fov          Skip sub-FOV extraction  
---save            Save all diagnostic plots (e.g., QS profile, intensity maps)  
---fig-dir         Output directory for saved figures (default: ./figures)  
-
+chase /data/20230329_X12/fits \
+      --patch 940 1080 1870 2040 \
+      --align-patch 980 1040 1920 1990 \
+      --contrast --temperature double --freeze-clim
 ```
 
----
-
-## 🧪 Example Notebook
-
-You can explore the pipeline interactively in:
-
-```bash
-tutorial.ipynb
-```
-
----
-
-Here is the updated `README.md` section with a link to `docs.md` for full documentation:
-
----
-
-## 🧪 Python Module Usage
-
-You can also use the CHASE calibration pipeline as a Python **library** in notebooks, scripts, or your own applications.
-
-### 🔹 Example Usage
+### …and the SDK — call any single stage
 
 ```python
-from chase.core import run_pipeline
+import chase
 
-run_pipeline(
-    fits_file = "./downloads/RSM20250501T233548_0000_FE.fits",
-    do_spatial   = True,
-    do_subpixel  = True,
-    do_spectral  = True,
-    do_intensity = True,
-    do_fov       = True,
-    save_figs    = True,
-    fig_dir      = "./figures",
-    threshold_ratio   = 0.2,
-    subpixel_accuracy = 100,
-    qs_box_size       = 100,
-    fov_width         = 300,
-    fov_height        = 300
-)
+# Load + crop-track a sequence (shift-then-crop, per-frame wavelength resample)
+seq = chase.load_flare_sequence("/data/20230329_X12/fits",
+                                patch=[940, 1080, 1870, 2040])
+
+# Fine-stabilise with optical flow on the flare-free channel; HA stays float32
+aligned = chase.optical_flow_align(seq["ha_cubes"], reference=seq["align_ref"])
+
+# Science products
+contrast, _ = chase.contrast_profile(aligned, background=seq["ha_bg"])
+ha_T, _ = chase.halpha_width_temperature(aligned[24], seq["wavelength_ha"])  # Molnar 2019
 ```
 
-### 🧠 Modular Functions
-
-You can also call individual steps directly:
+Or run the whole thing in one call:
 
 ```python
-from chase.core import (
-    load_fits_data,
-    recenter_image_cube,
-    align_subpixel,
-    extract_qs_region,
-    calibrate_wavelength,
-    normalize_intensity,
-    extract_subregion
-)
+from chase import Config, run_pipeline
+run_pipeline(Config(fits_dir="/data/.../fits", patch=[940,1080,1870,2040],
+                    contrast=True, temperature="double"))
 ```
 
-### 📄 Full API Documentation
+## What each subpackage does (one figure each)
 
-For a complete breakdown of each function, parameters, and advanced examples, refer to the [📘 `docs.md`](./DOCS.md) file.
+| Subpackage | What it does | |
+|---|---|---|
+| `chase.io` | Resumable download, folder/`.txt`/URL discovery, cube + sequence loading | <img src="assets/diag_patch.png" width="220"> |
+| `chase.calib.spatial` / `.align` | Shift-then-crop tracking + optical-flow stabilisation | <img src="assets/diag_optical_flow.png" width="220"> |
+| `chase.calib.wavelength` | Per-frame resampling onto a common grid; spectral-drift xcorr | <img src="assets/diag_qs_spectrum.png" width="220"> |
+| `chase.calib.intensity` | QS norm, integral scaling, **FTS-atlas absolute calibration** (ISPy) | <img src="assets/atlas_calibration.png" width="220"> |
+| `chase.analysis.contrast` | `(flare−bg)/bg − frame0` wavelength-vs-time profile | <img src="assets/contrast_profile.png" width="220"> |
+| `chase.analysis.temperature` | Hα width→T (Molnar) + Fe I →T (Planck/EB/Voigt) | <img src="assets/double_temp_map_peak.png" width="220"> |
 
----
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/temperature.gif" width="720" alt="Double temperature map animation"><br>
+  <em>Double temperature map: chromosphere from Hα width (~10⁴ K) and photosphere
+  from Fe I Planck inversion (~5,100 K, absolute-calibrated against the FTS atlas).</em>
+</p>
 
-## 📸 Output Visuals (Diagnostics)
+## Documentation
 
-Below are sample outputs saved during a typical run with `--save-figs`:
+- **[docs/DATA_ACQUISITION.md](docs/DATA_ACQUISITION.md)** — get from the CHASE portal to a processed cube, end to end.
+- **[docs/SDK.md](docs/SDK.md)** — the Python API, every function + parameters.
+- **[docs/TUI.md](docs/TUI.md)** — TUI walkthrough.
+- **[docs/CALIBRATION.md](docs/CALIBRATION.md)** — the science: what each calibration does and why.
+- **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — dev setup, tests, style.
 
-| Image                                      | Description                                                                                                                  |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| ![](./assets/initial_before_slice.png) | **Raw slice** from the original FITS data cube before any processing (typically slice 70).                                   |
-| ![](./assets/disk_slice.png)           | Slice showing the **solar disk** and brightness structure before recentering. Useful for checking disk detectability.        |
-| ![](./assets/recentered.png)           | The result after **spatial calibration**, where the disk is aligned to the center.                                           |
-| ![](./assets/pixel.png)                | Pixel location of the detected **disk center**, later used to convert to arcseconds.                                         |
-| ![](./assets/subpixel.png)             | Output of **sub-pixel alignment**, used to reduce jitter and motion between slices.                                          |
-| ![](./assets/spectral_profi.png)       | Intermediate **Quiet Sun spectral profile** plot, showing intensity vs. slice index.                                         |
-| ![](./assets/spectral_profile.png)     | Calibrated **spectral profile** with real wavelengths in Ångströms, aligned to H-alpha 656.28Å.                              |
-| ![](./assets/spectral_slice.png)       | Example of a **spectral slice** used in calibration and wavelength assignment.                                               |
-| ![](./assets/before_normal.png)        | A slice before **intensity normalization**, showing raw relative brightness.                                                 |
-| ![](./assets/sub-fov.png)              | Cropped **field-of-view (FOV)** region after all calibrations. Typically centered on solar disk with dimensions set via CLI. |
+## Tests
 
-Each image was generated from a single FITS cube and saved using the `--save-figs` flag.
-
----
-
-## 📁 Project Structure
-
-```
-chase/
-├── chase/
-│   ├── __init__.py         # Package entry
-│   ├── core.py             # All core calibration logic
-│   ├── cli.py              # CLI parser
-├── main.py                 # Entrypoint
-├── requirements.txt        # Dependencies
-├── README.md               # This file
-├── tutorial.gif            # Visual usage guide
-├── tutorial.ipynb          # Interactive notebook
-└── assets/
-    └── <images are here>/                # Diagnostic figures like spectra and FOVs
+```bash
+pip install -e '.[dev]' && pytest -q     # 22 fast tests on synthetic FITS fixtures
 ```
 
----
+## Acknowledgements
 
-## 🤝 Acknowledgements
+Built with the guidance and corrections of **Dr. Alexander Pietrow** (AIP) and
+**Dr. Malcolm Druett**. The Hough-circle limb centring, spectral
+cross-correlation, integral intensity scaling, and CSV shift-cache are adapted
+from **Finlay Davis**'s [`satprocess`](https://github.com/FinlayDavis/satprocess)
+(BSD-3-Clause; see [`NOTICE`](NOTICE)). Affiliation support from **Prof. Dr. Sayed
+Amer Mahmood** (University of the Punjab). Data courtesy of the **CHASE/HIS**
+mission and the [Solar Science Data Center, Nanjing University](https://ssdc.nju.edu.cn/NdchaseSatellite).
 
-Developed as part of the CHASE calibration project supervised by:
+## Citing
 
-* Prof. Dr. Sayed Amer Mahmood
-* Dr. Alexander Pietrow
-* Dr. Malcolm Druett
+If you use this pipeline, please cite the methods it builds on:
 
-Data courtesy of the [CHASE Satellite](https://ssdc.nju.edu.cn).
+- Molnar et al. 2019, *ApJ* **881**, 99 — Hα width → temperature ([10.3847/1538-4357/ab2ba3](https://doi.org/10.3847/1538-4357/ab2ba3)).
+- The Eddington–Barbier photospheric inversion (A&A 2013, aa21259-13).
+- The **ISPy** FTS solar-atlas calibration ([ISP-SST/ISPy](https://github.com/ISP-SST/ISPy)).
+- CHASE/HIS: Li et al. 2022, *Science China* — the CHASE mission.
 
----
+## License
 
-## 📜 License
-
-MIT License
-
+MIT © 2025 Waleed Ajmal. Ported `satprocess` components are BSD-3-Clause © 2025
+Finlay Davis — see [`NOTICE`](NOTICE).

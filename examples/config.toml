@@ -1,0 +1,40 @@
+# Example chase-pipeline config — the "lazy", point-and-run workflow.
+#   chase --config examples/config.toml
+#
+# Every key mirrors a field of chase.config.Config. Unknown keys are ignored.
+# (A [chase] table also works if you prefer: [chase]\n fits_dir = ...)
+
+# --- Data ---------------------------------------------------------------------
+fits_dir = "/data/20230329_X12/fits"   # folder of *HA.fits (+*FE.fits), a file, a .txt URL list, or a URL
+out_dir  = "./chase_out"
+
+# --- Field of view ------------------------------------------------------------
+# Data crop [y0, y1, x0, x1]. Set full_fov = true to process the whole disk.
+patch       = [940, 1080, 1870, 2040]
+# Optional smaller window used ONLY for shift estimation (reduces wobble):
+# align_patch = [980, 1040, 1920, 1990]
+full_fov    = false
+core_wavelength = 6562.8
+
+# --- Calibration toggles ------------------------------------------------------
+track               = true     # cross-correlation crop tracking (shift-then-crop)
+resample_wavelength = true     # per-frame resample onto frame 0's grid
+optical_flow        = true     # fine optical-flow stabilisation
+flow_method         = "tvl1"   # "tvl1" or "farneback"
+ref_channel         = "fe_last"  # "fe_last" (flare-free) or "ha_cont"
+
+# --- Analysis -----------------------------------------------------------------
+contrast    = true
+temperature = "double"   # "none" | "halpha" | "fe_planck" | "fe_eb" | "fe_voigt" | "double"
+
+# --- Output -------------------------------------------------------------------
+gif         = true
+freeze_clim = true       # fix animation colour limits across frames (honest comparison)
+save_npz    = true
+save_fits   = false
+diagnostics = true
+
+# --- Contrast plot labels -----------------------------------------------------
+flarestart = 15
+flarepeak  = 24
+flareclass = "X2.1"

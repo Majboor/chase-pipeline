@@ -1,5 +1,16 @@
-astropy==6.1.7
-matplotlib==3.10.3
-numpy==2.1.3
-scikit-image==0.25.2
-tqdm==4.67.1
+# Core runtime dependencies
+numpy>=1.21
+scipy>=1.7
+astropy>=5.0
+scikit-image>=0.19
+opencv-python>=4.5
+matplotlib>=3.4
+Pillow>=9.0
+tqdm>=4.60
+requests>=2.25
+tomli>=1.2; python_version < "3.11"
+
+# Optional extras (install as needed):
+#   pip install textual        # TUI  (chase-tui)
+#   pip install ISPy           # FTS-atlas absolute Fe I calibration
+#   pip install pytest         # tests

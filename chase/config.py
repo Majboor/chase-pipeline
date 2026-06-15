@@ -1,0 +1,121 @@
+"""Configuration: a dataclass that mirrors every pipeline option, loadable from
+TOML.
+
+This is the "lazy user" surface Alex asked for — point at a folder, set the FOV
+and a handful of true/false flags in a text file, run once.  The same object is
+what the CLI builds from flags and what the TUI builds from its forms, so all
+three front-ends drive identical behaviour.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from typing import List, Optional
+
+__all__ = ["Config", "load_config"]
+
+
+@dataclass
+class Config:
+    """All pipeline options in one place.
+
+    Attributes
+    ----------
+    fits_dir : str
+        Folder of ``*HA.fits`` (+ ``*FE.fits``) cubes, a single file, a ``.txt``
+        URL list, or a URL.
+    out_dir : str
+        Where outputs are written.
+    patch : list[int] or None
+        Data crop ``[y0, y1, x0, x1]``; ``None`` (or ``full_fov=True``) → full FOV.
+    align_patch : list[int] or None
+        Separate smaller window for shift estimation.
+    full_fov : bool
+        Ignore ``patch`` and process the whole field.
+    core_wavelength : float
+        Hα core wavelength in Å.
+    track : bool
+        Cross-correlation crop tracking (shift-then-crop).
+    resample_wavelength : bool
+        Per-frame wavelength resampling onto frame 0's grid.
+    optical_flow : bool
+        Fine optical-flow stabilisation.
+    flow_method : str
+        ``"tvl1"`` or ``"farneback"``.
+    ref_channel : str
+        Alignment reference: ``"fe_last"`` or ``"ha_cont"``.
+    contrast : bool
+        Compute the contrast profile.
+    temperature : str
+        ``"none" | "halpha" | "fe_planck" | "fe_eb" | "fe_voigt" | "double"``.
+    gif, freeze_clim, save_npz, save_fits, diagnostics : bool
+        Output toggles.
+    flarestart, flarepeak : int
+        Frame markers drawn on the contrast plot.
+    flareclass : str
+        Label for the contrast plot (e.g. ``"X2.1"``).
+    """
+
+    fits_dir: str = "."
+    out_dir: str = "./chase_out"
+    patch: Optional[List[int]] = None
+    align_patch: Optional[List[int]] = None
+    full_fov: bool = False
+    core_wavelength: float = 6562.8
+
+    track: bool = True
+    resample_wavelength: bool = True
+    optical_flow: bool = True
+    flow_method: str = "tvl1"
+    ref_channel: str = "fe_last"
+
+    contrast: bool = False
+    temperature: str = "none"
+
+    gif: bool = True
+    freeze_clim: bool = False
+    save_npz: bool = True
+    save_fits: bool = False
+    diagnostics: bool = True
+
+    flarestart: int = 15
+    flarepeak: int = 24
+    flareclass: str = "X2.1"
+
+    def effective_patch(self) -> Optional[List[int]]:
+        """Return the patch to use, honouring ``full_fov``."""
+        if self.full_fov:
+            return None
+        return self.patch
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def load_config(path: str) -> Config:
+    """Load a :class:`Config` from a TOML file.
+
+    Unknown keys are ignored with a warning so configs survive minor version
+    drift.  Uses the stdlib ``tomllib`` (3.11+) or the ``tomli`` backport.
+    """
+    try:
+        import tomllib  # Python 3.11+
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except ModuleNotFoundError:  # pragma: no cover - <3.11
+        import tomli
+        with open(path, "rb") as f:
+            data = tomli.load(f)
+
+    # Allow a [chase] table or a flat document.
+    if "chase" in data and isinstance(data["chase"], dict):
+        data = data["chase"]
+
+    valid = {f.name for f in Config.__dataclass_fields__.values()}
+    clean = {}
+    for k, v in data.items():
+        if k in valid:
+            clean[k] = v
+        else:
+            print(f"  [config] ignoring unknown key: {k!r}")
+    return Config(**clean)

@@ -46,10 +46,13 @@ def main() -> None:
     ha_bg = d["ha_bg"] if "ha_bg" in d else None
     nframes = ha.shape[0]
 
-    # 1) Hero 2-panel GIF (frozen colour limits = honest brightness comparison)
+    # 1) Hero 2-panel GIF. Per-frame autoscale (freeze_clim=False) matches the
+    #    signed-off v50 animation: with the flare peak in-sequence, frozen limits
+    #    would crush the photosphere to a flat dark frame. (freeze_clim remains
+    #    available via the SDK/CLI for like-for-like brightness comparisons.)
     print("→ flare.gif")
     chase.make_animation(cont, core, times=times, patch=patch,
-                         output_path=str(out / "flare.gif"), fps=4, freeze_clim=True)
+                         output_path=str(out / "flare.gif"), fps=4, freeze_clim=False)
 
     # 2) Static hero PNG at the flare peak
     print("→ flare_peak.png")

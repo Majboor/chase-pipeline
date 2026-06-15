@@ -20,7 +20,7 @@ core_wavelength = 6562.8
 track               = true     # cross-correlation crop tracking (shift-then-crop)
 resample_wavelength = true     # per-frame resample onto frame 0's grid
 optical_flow        = true     # fine optical-flow stabilisation
-flow_method         = "tvl1"   # "tvl1" or "farneback"
+flow_method         = "farneback"   # "tvl1" or "farneback" — TV-L1 blocks at flare peak; Farneback stays clean (docs/FLARE_STABILIZATION.md)
 ref_channel         = "fe_last"  # "fe_last" (flare-free) or "ha_cont"
 
 # --- Analysis -----------------------------------------------------------------

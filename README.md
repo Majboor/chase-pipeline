@@ -16,7 +16,10 @@ work for you, and lets you do as much or as little of it as you want.
 <p align="center">
   <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/flare.gif" width="760" alt="Stabilised 2-panel animation of the 2023-03-29 X2.1 flare"><br>
   <em>The 2023-03-29 <strong>X2.1</strong> flare, stabilised by this pipeline:
-  photosphere (Hα continuum) | chromosphere (Hα core). 25 frames, frozen colour limits.</em>
+  photosphere (Hα continuum) | chromosphere (Hα core). 25 frames, per-frame colour scaling.<br>
+  Rendered with <code>--flow-method farneback</code>: TV-L1 optical flow blocks at the flare peak
+  (its total-variation regularizer turns the brightening into a rigid motion block); Farneback stays
+  clean. See <a href="docs/FLARE_STABILIZATION.md">docs/FLARE_STABILIZATION.md</a>.</em>
 </p>
 
 ---

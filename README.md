@@ -63,6 +63,17 @@ chase-tui
   <img src="assets/tui_screenshot.png" width="760" alt="chase-tui screenshot">
 </p>
 
+**End-to-end walkthrough** — the real TUI driving the full pipeline on the
+2023-03-29 X2.1 flare (data source → FOV → calibration → temperature → run →
+the actual `flare.gif` / `temperature.gif` / `contrast_profile.gif` output):
+
+<p align="center">
+  <video src="https://github.com/Majboor/chase-pipeline/raw/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.mp4" width="760" controls muted></video>
+</p>
+
+> If the player doesn't load, watch it here:
+> [assets/tui_e2e_walkthrough.mp4](https://github.com/Majboor/chase-pipeline/raw/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.mp4).
+
 Pick a data source, enter a full FOV or an arbitrary patch (and a separate, smaller
 *alignment* patch if you want), tick the calibrations you want, and hit **Run** —
 live progress streams into the log pane. The TUI is a thin front-end over the SDK;

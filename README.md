@@ -59,10 +59,6 @@ pip install -e '.[all]'          # everything, incl. test deps
 chase-tui
 ```
 
-<p align="center">
-  <img src="assets/tui_screenshot.png" width="760" alt="chase-tui screenshot">
-</p>
-
 **End-to-end walkthrough** — the real TUI driving the full pipeline on the
 2023-03-29 X2.1 flare (data source → FOV → calibration → temperature → run →
 the actual `flare.gif` / `temperature.gif` / `contrast_profile.gif` output):

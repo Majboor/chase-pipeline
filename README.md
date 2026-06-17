@@ -68,10 +68,10 @@ chase-tui
 the actual `flare.gif` / `temperature.gif` / `contrast_profile.gif` output):
 
 <p align="center">
-  <video src="https://github.com/Majboor/chase-pipeline/raw/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.mp4" width="760" controls muted></video>
+  <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.gif" width="800" alt="End-to-end chase-tui walkthrough">
 </p>
 
-> If the player doesn't load, watch it here:
+> Prefer the full-resolution, scrubbable version?
 > [assets/tui_e2e_walkthrough.mp4](https://github.com/Majboor/chase-pipeline/raw/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.mp4).
 
 Pick a data source, enter a full FOV or an arbitrary patch (and a separate, smaller

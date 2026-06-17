@@ -178,5 +178,5 @@ If you use this pipeline, please cite the methods it builds on:
 
 ## License
 
-MIT © 2025 Waleed Ajmal. Ported `satprocess` components are BSD-3-Clause © 2025
+MIT © 2025-2026 Waleed Ajmal. Ported `satprocess` components are BSD-3-Clause © 2025
 Finlay Davis — see [`NOTICE`](NOTICE).

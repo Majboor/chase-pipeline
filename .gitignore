@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mplconfig/
+
+# Data products (never commit the big cubes / npz blobs)
+*.fits
+*.npz
+*.npy
+chase_out/
+data/
+downloads/
+figures/
+
+# OS
+.DS_Store

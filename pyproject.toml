@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chase-pipeline"
+version = "2.0.0"
+description = "Modular CHASE/HIS solar calibration and flare-analysis pipeline (TUI + SDK + CLI)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "Waleed Ajmal" }]
+keywords = ["solar", "CHASE", "HIS", "spectroscopy", "flare", "calibration", "astronomy"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "astropy>=5.0",
+    "scikit-image>=0.19",
+    "opencv-python>=4.5",
+    "matplotlib>=3.4",
+    "Pillow>=9.0",
+    "tqdm>=4.60",
+    "requests>=2.25",
+    "tomli>=1.2; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+tui = ["textual>=0.40"]
+atlas = ["ISPy"]          # FTS-atlas absolute Fe I calibration
+dev = ["pytest>=7.0", "pytest-cov"]
+all = ["textual>=0.40", "ISPy", "pytest>=7.0"]
+
+[project.scripts]
+chase = "chase.cli:main"
+chase-tui = "chase.tui:main"
+
+[project.urls]
+Homepage = "https://github.com/Majboor/chase-pipeline"
+Repository = "https://github.com/Majboor/chase-pipeline"
+
+[tool.setuptools.packages.find]
+include = ["chase*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

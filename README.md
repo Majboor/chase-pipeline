@@ -44,12 +44,20 @@ tool** that:
 
 ## Install
 
+Clone the repository first, then install from the clone:
+
 ```bash
+git clone https://github.com/Majboor/chase-pipeline.git
+cd chase-pipeline
+
 pip install -e .                 # core
 pip install -e '.[tui]'          # + Textual TUI  (chase-tui)
 pip install -e '.[atlas]'        # + ISPy for absolute Fe I temperature calibration
 pip install -e '.[all]'          # everything, incl. test deps
 ```
+
+A PyPI release (`pip install chase-pipeline`) is planned; until then the
+clone-and-install route above is the supported one.
 
 ## Three ways to use it
 
@@ -59,9 +67,10 @@ pip install -e '.[all]'          # everything, incl. test deps
 chase-tui
 ```
 
-**End-to-end walkthrough** — the real TUI driving the full pipeline on the
-2023-03-29 X2.1 flare (data source → FOV → calibration → temperature → run →
-the actual `flare.gif` / `temperature.gif` / `contrast_profile.gif` output):
+**End-to-end walkthrough** — the real TUI configured on the 2023-03-29 X2.1
+flare (data source → field of view → calibration → temperature → a before/after
+of the stabilisation → the actual `flare.gif` / `temperature.gif` /
+`contrast_profile.gif` output):
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.gif" width="800" alt="End-to-end chase-tui walkthrough">
@@ -74,6 +83,14 @@ Pick a data source, enter a full FOV or an arbitrary patch (and a separate, smal
 *alignment* patch if you want), tick the calibrations you want, and hit **Run** —
 live progress streams into the log pane. The TUI is a thin front-end over the SDK;
 it duplicates no logic.
+
+**Before / after** — what the spatial calibration buys you. Left: a raw fixed
+crop of the portal data, drifting frame to frame. Right: the same patch after
+shift-then-crop tracking + optical-flow stabilisation (Hα core):
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/before_after.gif" width="760" alt="Raw fixed crop vs tracked + optical-flow stabilised, Hα core">
+</p>
 
 ### 2. Config file — the "lazy" one-shot workflow
 
@@ -130,10 +147,10 @@ run_pipeline(Config(fits_dir="/data/.../fits", patch=[940,1080,1870,2040],
 
 | Subpackage | What it does | |
 |---|---|---|
-| `chase.io` | Resumable download, folder/`.txt`/URL discovery, cube + sequence loading | <img src="assets/diag_patch.png" width="220"> |
+| `chase.io` | Resumable download, folder / list-file / URL discovery, cube + sequence loading | <img src="assets/diag_patch.png" width="220"> |
 | `chase.calib.spatial` / `.align` | Shift-then-crop tracking + optical-flow stabilisation | <img src="assets/diag_optical_flow.png" width="220"> |
 | `chase.calib.wavelength` | Per-frame resampling onto a common grid; spectral-drift xcorr | <img src="assets/diag_qs_spectrum.png" width="220"> |
-| `chase.calib.intensity` | QS norm, integral scaling, **FTS-atlas absolute calibration** (ISPy) | <img src="assets/atlas_calibration.png" width="220"> |
+| `chase.calib.intensity` | QS norm, integral scaling, FTS-atlas absolute calibration (ISPy) | <img src="assets/atlas_calibration.png" width="220"> |
 | `chase.analysis.contrast` | `(flare−bg)/bg − frame0` wavelength-vs-time profile | <img src="assets/contrast_profile.png" width="220"> |
 | `chase.analysis.temperature` | Hα width→T (Molnar) + Fe I →T (Planck/EB/Voigt) | <img src="assets/double_temp_map_peak.png" width="220"> |
 

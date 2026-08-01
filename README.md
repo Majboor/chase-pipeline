@@ -118,6 +118,21 @@ chase /data/20230329_X12/fits \
       --contrast --temperature double --freeze-clim
 ```
 
+Every run checkpoints the aligned cubes to `out_dir/aligned_data.npz`, so you
+never have to redo the slow load + align stages just to tweak an output —
+rerun a single step against the checkpoint with `--only` (implies `--resume`):
+
+```bash
+chase /data/20230329_X12/fits --out ./chase_out --only gif            # just re-render the animation
+chase /data/20230329_X12/fits --out ./chase_out --only contrast,gif --no-drift
+chase /data/20230329_X12/fits --out ./chase_out --only temperature --temperature fe_voigt
+```
+
+Steps: `gif`, `contrast`, `temperature`, `npz`, `fits`, `diagnostics`. Plain
+`--resume` keeps your normal toggles and only skips load + align. (Changing the
+patch or alignment options needs a fresh run *without* `--resume` — the
+checkpoint stores the cubes as they were cropped and aligned.)
+
 ### …and the SDK — call any single stage
 
 ```python
@@ -141,6 +156,10 @@ Or run the whole thing in one call:
 from chase import Config, run_pipeline
 run_pipeline(Config(fits_dir="/data/.../fits", patch=[940,1080,1870,2040],
                     contrast=True, temperature="double"))
+
+# Later: rerun only the outputs you care about, from the saved checkpoint
+run_pipeline(Config(fits_dir="/data/.../fits", out_dir="./chase_out",
+                    resume=True, gif=True, temperature="fe_voigt"))
 ```
 
 ## What each subpackage does (one figure each)

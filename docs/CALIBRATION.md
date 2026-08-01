@@ -25,6 +25,11 @@ grid** before any spectral arithmetic.
 → `chase.calib.resample_wavelength`. Data-driven fallback when headers are
 unreliable: `chase.calib.correct_spectral_drift`.
 
+Both corrections are switchable when you want the untouched spectra:
+`resample_wavelength = false` turns off the header-based resampling, and
+`correct_drift = false` (CLI `--no-drift`) turns off the data-driven
+correction inside the contrast stage.
+
 ## 3. Align on a flare-free channel
 
 The eruption (frames ~22–24) is **real motion** — we must not stabilise it away.

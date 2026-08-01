@@ -41,8 +41,18 @@ def build_parser() -> argparse.ArgumentParser:
     # Stage toggles
     p.add_argument("--no-track", action="store_true", help="Disable crop tracking")
     p.add_argument("--no-resample", action="store_true", help="Disable wavelength resampling")
+    p.add_argument("--no-drift", action="store_true",
+                   help="Disable spectral drift correction in the contrast stage")
     p.add_argument("--no-optical-flow", action="store_true", help="Disable optical-flow stabilisation")
     p.add_argument("--flow-method", choices=["tvl1", "farneback"], default=None)
+
+    # Resume / step selection
+    p.add_argument("--resume", action="store_true",
+                   help="Reuse out_dir/aligned_data.npz from a previous run (skips load + align)")
+    p.add_argument("--only", metavar="STEP[,STEP…]", default=None,
+                   help="Run only the listed output steps, reusing the checkpoint when present "
+                        "(implies --resume). Steps: gif, contrast, temperature, npz, fits, "
+                        "diagnostics. E.g.: --only gif  or  --only contrast,gif")
 
     # Analysis
     p.add_argument("--contrast", action="store_true", help="Compute the contrast profile")
@@ -127,7 +137,42 @@ def config_from_args(args) -> Config:
         cfg.flarepeak = args.flarepeak
     if args.flareclass is not None:
         cfg.flareclass = args.flareclass
+
+    if args.no_drift:
+        cfg.correct_drift = False
+    if args.resume:
+        cfg.resume = True
+    if args.only is not None:
+        _apply_only(cfg, args.only)
     return cfg
+
+
+_ONLY_STEPS = ("gif", "contrast", "temperature", "npz", "fits", "diagnostics")
+
+
+def _apply_only(cfg: Config, only: str) -> None:
+    """Turn every output step off except the ones listed in ``--only``."""
+    steps = {s.strip() for s in only.split(",") if s.strip()}
+    unknown = steps - set(_ONLY_STEPS)
+    if unknown:
+        raise SystemExit(
+            f"--only: unknown step(s) {', '.join(sorted(unknown))}; "
+            f"choose from: {', '.join(_ONLY_STEPS)}"
+        )
+    cfg.gif = "gif" in steps
+    cfg.contrast = "contrast" in steps
+    cfg.save_npz = "npz" in steps
+    cfg.save_fits = "fits" in steps
+    cfg.diagnostics = "diagnostics" in steps
+    if "temperature" in steps:
+        if cfg.temperature == "none":
+            raise SystemExit(
+                "--only temperature needs a method: add --temperature "
+                "halpha|fe_planck|fe_eb|fe_voigt|double"
+            )
+    else:
+        cfg.temperature = "none"
+    cfg.resume = True
 
 
 def main(argv=None) -> int:

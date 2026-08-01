@@ -8,6 +8,20 @@ All notable changes to this project are documented here. Format loosely follows
 A ground-up rebuild into a modular, multi-front-end package.
 
 ### Added
+- **Resume / step skipping** — `Config.resume` (CLI `--resume`, TUI checkbox)
+  reuses `out_dir/aligned_data.npz` from a previous run, skipping the slow
+  load + align stages so individual output steps can be rerun without
+  restarting the whole pipeline. `chase --only gif,contrast` (implies
+  `--resume`) runs just the listed output steps: `gif`, `contrast`,
+  `temperature`, `npz`, `fits`, `diagnostics`. The TUI gains the matching
+  per-output checkboxes (GIF, npz, FITS, diagnostics) plus a resume toggle,
+  so single steps can be rerun from any front-end.
+- **`correct_drift` toggle** — the contrast stage's data-driven spectral drift
+  correction (previously always on) is now `Config.correct_drift`
+  (CLI `--no-drift`, TUI checkbox); together with `resample_wavelength = false`
+  this turns wavelength correction off entirely.
+- The contrast profile is now saved to `out_dir/contrast_profile.npy` (it
+  previously existed only in memory / in the contrast GIF).
 - **Modular package layout** (`chase.io`, `chase.calib`, `chase.analysis`,
   `chase.viz`) — every stage is an importable function; nothing is a forced
   pipeline.

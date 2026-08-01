@@ -46,8 +46,15 @@ class Config:
         Alignment reference: ``"fe_last"`` or ``"ha_cont"``.
     contrast : bool
         Compute the contrast profile.
+    correct_drift : bool
+        Data-driven spectral drift correction inside the contrast stage
+        (cross-correlate each frame's mean spectrum against frame 0).
     temperature : str
         ``"none" | "halpha" | "fe_planck" | "fe_eb" | "fe_voigt" | "double"``.
+    resume : bool
+        Reuse ``out_dir/aligned_data.npz`` from a previous run: skip the load
+        and align stages and rerun only the output/analysis steps.  Falls back
+        to a full run when no checkpoint exists.
     gif, freeze_clim, save_npz, save_fits, diagnostics : bool
         Output toggles.
     flarestart, flarepeak : int
@@ -70,7 +77,9 @@ class Config:
     ref_channel: str = "fe_last"
 
     contrast: bool = False
+    correct_drift: bool = True
     temperature: str = "none"
+    resume: bool = False
 
     gif: bool = True
     freeze_clim: bool = False

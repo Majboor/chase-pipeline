@@ -95,6 +95,7 @@ if _textual_available():
                     yield Checkbox("Wavelength resampling", value=True, id="resample")
                     yield Checkbox("Optical-flow stabilisation", value=True, id="optical_flow")
                     yield Checkbox("Contrast profile", id="contrast")
+                    yield Checkbox("Spectral drift correction (contrast)", value=True, id="correct_drift")
                     yield Checkbox("Freeze animation colour limits", id="freeze_clim")
 
                     yield Static("Temperature", classes="h")
@@ -105,6 +106,11 @@ if _textual_available():
 
                     yield Static("Output", classes="h")
                     yield Input(value="./chase_out", id="out")
+                    yield Checkbox("Resume from aligned_data.npz (skip load + align)", id="resume")
+                    yield Checkbox("Animations (GIF)", value=True, id="gif")
+                    yield Checkbox("Save aligned_data.npz", value=True, id="save_npz")
+                    yield Checkbox("Save aligned FITS", id="save_fits")
+                    yield Checkbox("Diagnostic PNGs", value=True, id="diagnostics")
                     yield Button("Run pipeline", id="run", variant="success")
 
                 with Vertical(id="right"):
@@ -134,6 +140,12 @@ if _textual_available():
             cfg.resample_wavelength = self.query_one("#resample", Checkbox).value
             cfg.optical_flow = self.query_one("#optical_flow", Checkbox).value
             cfg.contrast = self.query_one("#contrast", Checkbox).value
+            cfg.correct_drift = self.query_one("#correct_drift", Checkbox).value
+            cfg.resume = self.query_one("#resume", Checkbox).value
+            cfg.gif = self.query_one("#gif", Checkbox).value
+            cfg.save_npz = self.query_one("#save_npz", Checkbox).value
+            cfg.save_fits = self.query_one("#save_fits", Checkbox).value
+            cfg.diagnostics = self.query_one("#diagnostics", Checkbox).value
             cfg.freeze_clim = self.query_one("#freeze_clim", Checkbox).value
             cfg.temperature = str(self.query_one("#temperature", Select).value)
             return cfg

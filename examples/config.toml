@@ -24,10 +24,14 @@ flow_method         = "farneback"   # "tvl1" or "farneback" — TV-L1 blocks at 
 ref_channel         = "fe_last"  # "fe_last" (flare-free) or "ha_cont"
 
 # --- Analysis -----------------------------------------------------------------
-contrast    = true
-temperature = "double"   # "none" | "halpha" | "fe_planck" | "fe_eb" | "fe_voigt" | "double"
+contrast      = true
+correct_drift = true     # spectral drift correction inside the contrast stage
+temperature   = "double" # "none" | "halpha" | "fe_planck" | "fe_eb" | "fe_voigt" | "double"
 
 # --- Output -------------------------------------------------------------------
+# resume = true reuses out_dir/aligned_data.npz from a previous run (skips the
+# slow load + align stages) so you can rerun just the outputs below.
+resume      = false
 gif         = true
 freeze_clim = true       # fix animation colour limits across frames (honest comparison)
 save_npz    = true

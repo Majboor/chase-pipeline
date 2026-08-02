@@ -18,6 +18,7 @@ import numpy as np
 from .. import _compat  # noqa: F401  (installs lzma stub before astropy import)
 
 __all__ = [
+    "save_aligned_fits",
     "load_cube",
     "load_fits_data",
     "wavelength_grid",
@@ -135,6 +136,49 @@ def save_cube_fits(cube: np.ndarray, path: str, header=None) -> str:
     image = fits.ImageHDU(data=np.asarray(cube, dtype=np.float32), header=header)
     fits.HDUList([primary, image]).writeto(path, overwrite=True)
     return path
+
+
+def save_aligned_fits(out_dir, seq, ha_al, plate_scale=1.04, prefix="aligned"):
+    """Write each aligned scan as a FITS cube with an updated header.
+
+    The header records the crop origin in original detector pixels, a linear
+    arcsec WCS from the plate scale, the common wavelength axis, and HISTORY
+    entries naming each calibration applied - so downstream tools (and future
+    selves) know exactly what the data are.
+    """
+    import astropy.io.fits as fits
+
+    os.makedirs(out_dir, exist_ok=True)
+    patch = np.asarray(seq.get("patch"))
+    y0, x0 = (int(patch[0]), int(patch[2])) if patch.size == 4 else (0, 0)
+    wav = seq["wavelength_ha"]
+    shifts = seq.get("shifts") or [(0, 0)] * ha_al.shape[0]
+    paths = []
+    for i in range(ha_al.shape[0]):
+        hdr = fits.Header()
+        hdr["TELESCOP"] = "CHASE-HIS"
+        hdr["DATE-OBS"] = str(seq["times"][i])
+        hdr["BUNIT"] = ("DN", "detector counts (not radiometrically calibrated)")
+        hdr["CTYPE1"], hdr["CTYPE2"], hdr["CTYPE3"] = "SOLAR-X", "SOLAR-Y", "WAVE"
+        hdr["CUNIT1"] = hdr["CUNIT2"] = "arcsec"
+        hdr["CUNIT3"] = "Angstrom"
+        hdr["CDELT1"] = hdr["CDELT2"] = (plate_scale, "arcsec/pixel")
+        hdr["CDELT3"] = float(wav[1] - wav[0])
+        hdr["CRPIX1"] = hdr["CRPIX2"] = 1.0
+        hdr["CRPIX3"] = 1.0
+        hdr["CRVAL1"] = (x0 * plate_scale, "arcsec of crop origin, detector frame")
+        hdr["CRVAL2"] = (y0 * plate_scale, "arcsec of crop origin, detector frame")
+        hdr["CRVAL3"] = float(wav[0])
+        hdr["PATCHY0"], hdr["PATCHX0"] = y0, x0
+        hdr["TRKSH_Y"] = (int(shifts[i][0]), "tracking shift applied [px]")
+        hdr["TRKSH_X"] = (int(shifts[i][1]), "tracking shift applied [px]")
+        hdr["HISTORY"] = "chasepy: shift-then-crop tracking (robust per-parity shifts)"
+        hdr["HISTORY"] = "chasepy: wavelength resampled onto scan-0 grid (cubic)"
+        hdr["HISTORY"] = "chasepy: optical-flow stabilised (flare-free reference)"
+        path = os.path.join(out_dir, f"{prefix}_{i:04d}_HA.fits")
+        save_cube_fits(ha_al[i], path, header=hdr)
+        paths.append(path)
+    return paths
 
 
 def save_npz(path: str, compressed: bool = True, **arrays) -> str:

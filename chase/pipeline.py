@@ -17,7 +17,7 @@ from . import _compat  # noqa: F401
 from .analysis.contrast import contrast_profile
 from .calib.align import optical_flow_align
 from .config import Config
-from .io.fits_io import extract_disk_center, save_cube_fits, save_npz
+from .io.fits_io import extract_disk_center, save_aligned_fits, save_cube_fits, save_npz
 from .io.loader import load_flare_sequence
 
 __all__ = ["run_pipeline"]
@@ -123,8 +123,9 @@ def run_pipeline(config: Config, progress: Optional[ProgressFn] = None) -> dict:
         results["npz"] = save_npz(npz_path, **save_dict)
 
     if config.save_fits:
-        p("save", "writing aligned FITS cubes…")
-        results["fits"] = save_cube_fits(ha_al[0], os.path.join(config.out_dir, "ha_aligned_frame0.fits"))
+        p("save", "writing aligned FITS cubes with updated headers…")
+        results["fits"] = save_aligned_fits(
+            os.path.join(config.out_dir, "aligned_fits"), seq, ha_al)
 
     # --- 4. Hero animation ---------------------------------------------------
     if config.gif:
@@ -167,7 +168,7 @@ def run_pipeline(config: Config, progress: Optional[ProgressFn] = None) -> dict:
     # --- 7. Diagnostics ------------------------------------------------------
     if config.diagnostics:
         p("diagnostics", "writing diagnostic PNGs…")
-        results["diagnostics"] = _run_diagnostics(config, seq)
+        results["diagnostics"] = _run_diagnostics(config, seq, ha_al)
 
     p("done", f"outputs written to {config.out_dir}")
     return results
@@ -240,7 +241,7 @@ def _run_temperature(config, seq, ha_al, fe_al, has_fe, p) -> dict:
     return out
 
 
-def _run_diagnostics(config, seq) -> list:
+def _run_diagnostics(config, seq, _diag_after=None) -> list:
     from .viz.diagnostics import plot_patch_overlay, plot_qs_spectrum, plot_shift_track
 
     paths = []
@@ -250,6 +251,14 @@ def _run_diagnostics(config, seq) -> list:
         paths.append(plot_patch_overlay(frame0, list(seq["patch"]),
                                         os.path.join(d, "diag_patch_overlay.png"),
                                         align_patch=config.align_patch))
+    if config.optical_flow and _diag_after is not None:
+        from .viz.diagnostics import plot_alignment_difference
+
+        mid = seq["ha_cubes"].shape[0] // 2
+        paths.append(plot_alignment_difference(
+            seq["ha_cubes"][:, -1], _diag_after[:, -1], mid,
+            os.path.join(d, "diag_alignment_difference.png"),
+            patch=list(seq["patch"]) if seq["patch"].size == 4 else None))
     qs = np.mean(seq["ha_cubes"][0], axis=(1, 2))
     paths.append(plot_qs_spectrum(qs, seq["wavelength_ha"],
                                   os.path.join(d, "diag_qs_spectrum.png"),

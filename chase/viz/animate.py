@@ -16,11 +16,16 @@ from .. import _compat  # noqa: F401  (headless matplotlib)
 __all__ = ["make_animation", "make_contrast_animation", "make_temperature_animation"]
 
 
-def _extent(patch):
+PLATE_SCALE = 1.04  # arcsec / pixel (CHASE/HIS, Qiu et al. 2022)
+
+
+def _extent(patch, plate_scale=PLATE_SCALE):
+    """Axis extent in arcsec: pixel coordinates scaled by the plate scale."""
     patch = np.asarray(patch)
     if patch.size == 4:
-        y0, y1, x0, x1 = [int(v) for v in patch]
-        return [x0, x1, y0, y1]
+        y0, y1, x0, x1 = [float(v) for v in patch]
+        s = plate_scale
+        return [x0 * s, x1 * s, y0 * s, y1 * s]
     return None
 
 
@@ -82,12 +87,15 @@ def make_animation(
         k_lo, k_hi = np.nanmin(core), _hi(core)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6), facecolor="white")
-    im1 = ax1.imshow(cont[0], cmap=cmap, origin="lower", extent=extent)
-    im2 = ax2.imshow(core[0], cmap=cmap, origin="lower", extent=extent)
+    im1 = ax1.imshow(cont[0], cmap=cmap, origin="lower", extent=extent,
+                     interpolation="nearest")
+    im2 = ax2.imshow(core[0], cmap=cmap, origin="lower", extent=extent,
+                     interpolation="nearest")
+    unit = "arcsec" if extent is not None else "px"
     for ax, t in zip((ax1, ax2), titles):
         ax.set_title(t)
-        ax.set_xlabel("X [px]")
-        ax.set_ylabel("Y [px]")
+        ax.set_xlabel(f"Solar X [{unit}]")
+        ax.set_ylabel(f"Solar Y [{unit}]")
     suptitle = fig.suptitle(f"{times[0]}  —  Frame 0", y=0.98, fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
 
@@ -104,7 +112,7 @@ def make_animation(
         return im1, im2, suptitle
 
     ani = FuncAnimation(fig, update, frames=nframes, interval=int(1000 / fps), blit=True)
-    ani.save(output_path, writer=PillowWriter(fps=fps))
+    ani.save(output_path, writer=PillowWriter(fps=fps), dpi=150)
     plt.close(fig)
     return output_path
 
@@ -163,7 +171,7 @@ def make_contrast_animation(
         return im1, im2, cursor, suptitle
 
     ani = FuncAnimation(fig, update, frames=nframes, interval=400, blit=True)
-    ani.save(output_path, writer=PillowWriter(fps=fps))
+    ani.save(output_path, writer=PillowWriter(fps=fps), dpi=150)
     plt.close(fig)
     return output_path
 
@@ -219,6 +227,6 @@ def make_temperature_animation(
         return artists
 
     ani = FuncAnimation(fig, update, frames=nframes, interval=400, blit=True)
-    ani.save(output_path, writer=PillowWriter(fps=fps))
+    ani.save(output_path, writer=PillowWriter(fps=fps), dpi=150)
     plt.close(fig)
     return output_path

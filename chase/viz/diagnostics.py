@@ -13,6 +13,7 @@ import numpy as np
 from .. import _compat  # noqa: F401
 
 __all__ = [
+    "plot_alignment_difference",
     "plot_patch_overlay",
     "plot_qs_spectrum",
     "plot_shift_track",
@@ -106,5 +107,54 @@ def plot_atlas_calibration(wavelengths_fe, disk_center_fe_cube, ifact, woff, out
     ax.legend(fontsize=9)
     fig.tight_layout()
     fig.savefig(output_path, dpi=140)
+    plt.close(fig)
+    return output_path
+
+
+def plot_alignment_difference(before, after, frame, output_path,
+                              patch=None, plate_scale=1.04):
+    """Consecutive-frame difference maps before vs after alignment.
+
+    The static proof that alignment worked: the difference of two consecutive
+    frames of an unaligned stack is dominated by shift residuals (edge-like
+    dipoles on every feature), while an aligned stack subtracts cleanly,
+    leaving only real solar evolution. Both panels share one symmetric colour
+    scale so they are directly comparable.
+
+    Parameters
+    ----------
+    before, after : ndarray (nframes, H, W)
+        The same channel of the stack before and after alignment.
+    frame : int
+        Difference is ``frame+1`` minus ``frame``.
+    output_path : str
+    patch : [y0, y1, x0, x1] or None, optional
+        For arcsec axis extents (pixel coords x plate_scale).
+    plate_scale : float, optional
+        arcsec per pixel (CHASE/HIS: 1.04).
+    """
+    import matplotlib.pyplot as plt
+
+    d_before = before[frame + 1].astype(np.float64) - before[frame]
+    d_after = after[frame + 1].astype(np.float64) - after[frame]
+    v = np.nanpercentile(np.abs(np.concatenate([d_before, d_after])), 99)
+
+    extent = None
+    if patch is not None and np.asarray(patch).size == 4:
+        y0, y1, x0, x1 = [float(p) for p in np.asarray(patch)]
+        extent = [x0 * plate_scale, x1 * plate_scale,
+                  y0 * plate_scale, y1 * plate_scale]
+    unit = "arcsec" if extent is not None else "px"
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5.2), facecolor="white")
+    for ax, d, title in ((ax1, d_before, "before alignment"),
+                         (ax2, d_after, "after alignment")):
+        im = ax.imshow(d, cmap="RdBu_r", origin="lower", vmin=-v, vmax=v,
+                       extent=extent, interpolation="nearest")
+        ax.set_title(f"frame {frame + 1} - frame {frame}, {title}")
+        ax.set_xlabel(f"Solar X [{unit}]")
+        ax.set_ylabel(f"Solar Y [{unit}]")
+    fig.colorbar(im, ax=(ax1, ax2), label="intensity difference", shrink=0.85)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return output_path

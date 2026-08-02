@@ -129,3 +129,25 @@ def test_config_roundtrip_toml(tmp_path):
     assert cfg.patch == [10, 20, 30, 40]
     assert cfg.contrast is True
     assert cfg.temperature == "double"
+
+
+def test_fits_export_and_alignment_diff(synthetic_dataset, tmp_path):
+    """save_fits writes per-scan cubes with updated headers; diagnostics
+    include the before/after alignment difference map."""
+    import astropy.io.fits as fits
+
+    out = tmp_path / "out_fits"
+    cfg = Config(fits_dir=synthetic_dataset["dir"], out_dir=str(out),
+                 patch=synthetic_dataset["patch"], optical_flow=True,
+                 gif=False, save_fits=True, diagnostics=True)
+    results = run_pipeline(cfg, progress=lambda s, m: None)
+
+    paths = results["fits"]
+    assert len(paths) == synthetic_dataset["nframes"]
+    with fits.open(paths[0]) as h:
+        hdr = h[1].header
+        assert hdr["CUNIT1"] == "arcsec" and abs(hdr["CDELT1"] - 1.04) < 1e-9
+        assert hdr["CTYPE3"] == "WAVE"
+        assert any("optical-flow" in str(c) for c in hdr["HISTORY"])
+
+    assert any("alignment_difference" in p for p in results["diagnostics"])

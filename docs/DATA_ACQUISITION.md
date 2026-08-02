@@ -76,7 +76,7 @@ chase data/20230329_X12/fits --patch 940 1080 1870 2040 --contrast --temperature
 ```
 
 Outputs (in `out_dir`): `aligned_data.npz` (all 118 HA + 46 FE channels, aligned),
-`flare.gif`, optionally `contrast_profile.gif`, `temperature.gif`, temperature
+`quicklook.gif`, optionally `contrast_profile.gif`, `temperature.gif`, temperature
 `.npy` arrays, and diagnostic PNGs.
 
 ## 5. Finding your patch

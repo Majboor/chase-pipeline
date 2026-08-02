@@ -50,9 +50,9 @@ def main() -> None:
     #    signed-off v50 animation: with the flare peak in-sequence, frozen limits
     #    would crush the photosphere to a flat dark frame. (freeze_clim remains
     #    available via the SDK/CLI for like-for-like brightness comparisons.)
-    print("→ flare.gif")
+    print("→ quicklook.gif")
     chase.make_animation(cont, core, times=times, patch=patch,
-                         output_path=str(out / "flare.gif"), fps=4, freeze_clim=False)
+                         output_path=str(out / "quicklook.gif"), fps=4, freeze_clim=False)
 
     # 2) Static hero PNG at the flare peak
     print("→ flare_peak.png")

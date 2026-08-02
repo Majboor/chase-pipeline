@@ -143,7 +143,7 @@ Planck fits a Gaussian core. Eddington-Barbier gives core and continuum temperat
 
 ```python
 gif = chase.make_animation(cont_al, core_al, times=seq["times"],
-                           output_path="flare.gif", freeze_clim=True)
+                           output_path="quicklook.gif", freeze_clim=True)
 
 gif = chase.make_contrast_animation(ha_al, seq["wavelength_ha"], contrast,
                                     seq["core_idx"], output_path="contrast.gif",

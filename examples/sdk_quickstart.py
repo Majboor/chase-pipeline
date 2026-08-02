@@ -36,8 +36,8 @@ def main(fits_dir: str) -> None:
     cont = aligned[:, -1]
     core = aligned[:, seq["core_idx"]]
     chase.make_animation(cont, core, times=seq["times"], patch=seq["patch"],
-                         output_path="flare.gif", freeze_clim=True)
-    print("wrote flare.gif")
+                         output_path="quicklook.gif", freeze_clim=True)
+    print("wrote quicklook.gif")
 
     # …or run everything in one call:
     # from chase import Config, run_pipeline

@@ -52,7 +52,7 @@ chase ./data --patch 940 1080 1870 2040 --contrast --temperature halpha
 
 | You get | What it is |
 |---|---|
-| `flare.gif` | photosphere / chromosphere animation |
+| `quicklook.gif` | photosphere / chromosphere animation |
 | `contrast_profile.gif` + `.npy` | wavelength-vs-time flare contrast |
 | `ha_temp_maps.npy` + `temperature.gif` | chromospheric temperature maps |
 | `aligned_data.npz` | the aligned cubes (also the resume checkpoint) |
@@ -94,7 +94,7 @@ results = run_pipeline(Config(fits_dir="./data", patch=[940, 1080, 1870, 2040],
 
 results["aligned"]["ha"].shape    # (nframes, 118, H, W) stabilised float32
 results["contrast"].shape         # (nframes, 118)
-results["gif"]                    # './chase_out/flare.gif'
+results["gif"]                    # './chase_out/quicklook.gif'
 ```
 
 Rerun one step from the checkpoint: add `resume=True` and only the toggles you want.

@@ -133,7 +133,7 @@ def run_pipeline(config: Config, progress: Optional[ProgressFn] = None) -> dict:
 
         results["gif"] = make_animation(
             cont_al, core_al, times=seq["times"], patch=seq["patch"],
-            output_path=os.path.join(config.out_dir, "flare.gif"),
+            output_path=os.path.join(config.out_dir, "quicklook.gif"),
             freeze_clim=config.freeze_clim,
         )
 

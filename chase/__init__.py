@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from . import _compat  # noqa: F401  (lzma stub + headless matplotlib)
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 # --- I/O -------------------------------------------------------------------
 from .io import (

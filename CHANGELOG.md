@@ -3,7 +3,14 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
-## [2.0.0] — unreleased (branch `feat/unified-pipeline-tui-sdk`)
+## [2.0.1] — 2026-08-02
+
+### Changed
+- Docs rewritten code-first around the PyPI package: README, `docs/SDK.md`
+  (usage snippets with expected outputs for every stage), and
+  `docs/CONTRIBUTING.md` (adds the PyPI release procedure). No code changes.
+
+## [2.0.0] — 2026-08-02 (first PyPI release, as `chasepy`)
 
 A ground-up rebuild into a modular, multi-front-end package.
 

@@ -1,95 +1,190 @@
-# Python SDK reference
+# Python SDK
 
-Everything is importable from the top-level `chase` namespace, and every function
-has a NumPy-style docstring (so `help(chase.track_and_crop)` is authoritative).
-This page is the map.
+Everything imports from the top level:
 
 ```python
 import chase
 ```
 
-## I/O — `chase.io`
+Every public function has a NumPy-style docstring, so `help(chase.track_and_crop)` is authoritative. This page shows how to actually use each piece: what to call, what comes back, what to do with it.
 
-| Function | Signature (abridged) | Returns |
-|----------|----------------------|---------|
-| `download` / `download_file` | `(url, save_dir, max_retries=5)` | local path (resumable) |
-| `resolve_inputs` | `(input_path, save_dir="./data")` | list of local FITS paths (dir / `.txt` / URL / file) |
-| `discover_fits` | `(directory)` | `(ha_files, fe_files)` |
-| `load_cube` | `(filepath, region=None)` | `(cube[nλ,H,W], header, wavelengths)` |
-| `load_flare_sequence` | `(fits_dir, patch=None, align_patch=None, track=True, resample=True)` | dict of stacks + metadata |
-| `extract_disk_center` | `(filepath, size=100)` | `(cube, wavelengths, (cy,cx))` — CRPIX patch |
-| `save_cube_fits` / `save_npz` | `(…, path)` | path |
+Array convention: spectral cubes are `(nλ, H, W)`, sequences are `(nframes, nλ, H, W)`, always float32.
 
-`load_flare_sequence` returns a dict with `ha_cubes` `(nframes, nλ_ha, H, W)`,
-`fe_cubes` (or `None`), `cont_raw`, `core_raw`, `align_ref`, `ha_bg`,
-`wavelength_ha`, `wavelength_fe`, `times`, `core_idx`, `patch`, …
-
-## Calibration — `chase.calib`
-
-### Spatial (`chase.calib.spatial`)
-- `find_disk_center(image, threshold_ratio=0.2)` → `(cx, cy, mask)` — brightness centroid.
-- `hough_disk_center(image, reference_radius=None, …)` → `(cx, cy, radius)` — robust limb fit *(satprocess, BSD-3)*.
-- `phase_shift(reference, target, upsample_factor=100)` → `(sy, sx)`.
-- `recenter(cube, (dx, dy))` → cube.
-- `track_and_crop(frames, patch, ref_channel=-1, pad=20, track=True, align_patch=None)` → `(cropped, shifts)` — **shift-then-crop**.
-
-### Alignment (`chase.calib.align`)
-- `optical_flow_align(cubes, reference=None, method="tvl1", extra_cubes=None)` → aligned cube(s).
-- `warp_cube(cube, map_x, map_y)`, `create_optical_flow_solver()`.
-
-### Wavelength (`chase.calib.wavelength`)
-- `resample_wavelength(cube, src_wav, dst_wav, kind="cubic")` → cube on `dst_wav`.
-- `correct_spectral_drift(ha_cubes)` → `(corrected, shifts)`.
-- `cross_correlation_shift(ref, target)`, `align_spectrum(ref_w, ref_i, tgt_w, tgt_i)` *(satprocess)*.
-
-### Intensity (`chase.calib.intensity`)
-- `normalize_intensity(cube, ref_cube, clip=(0,2))`.
-- `integral_scaling(ref_spec, target_spec)` → factor *(satprocess)*.
-- `atlas_calibrate(wavelengths, disk_center_cube)` → `(ifact, woff)` — absolute, **ISPy required**.
-- `planck_inversion(I_nu, wavelength_ang=6569.0)` → T [K].
-
-## Analysis — `chase.analysis`
-
-- `contrast_profile(ha_cubes, background=None, baseline_frame=0, correct_drift=True)` → `(contrast, mean_spec)`.
-- `halpha_width_temperature(ha_cube, wavelengths, core_wavelength=6562.8)` → `(T_map, width_map)` *(Molnar 2019)*.
-- `measure_halpha_width`, `halpha_width_map`, `width_to_temperature`.
-- `fe_planck_temperature(fe_cube, wavelengths, ifact)` → `(T_map, core_intensity)` *(Gaussian core)*.
-- `fe_eb_temperature(...)` → `(T_cube, T_core, T_continuum)` *(Eddington–Barbier)*.
-- `fe_voigt_temperature(...)` → `(T_map, core, center)` *(Voigt; robust to under-sampling)*.
-
-## Visualisation — `chase.viz`
-
-- `make_animation(cont, core, times=None, patch=None, output_path=…, freeze_clim=False)`.
-- `make_contrast_animation(ha_cubes, wavelengths, contrast, core_idx, …)`.
-- `make_temperature_animation(ha_temp, fe_temp, core_imgs, …)`.
-- `chase.viz.diagnostics`: `plot_patch_overlay`, `plot_qs_spectrum`, `plot_shift_track`, `plot_atlas_calibration`.
-
-## Orchestration
-
-- `Config(...)` — dataclass of every option (see `examples/config.toml`).
-- `load_config(path)` — read a TOML into a `Config`.
-- `run_pipeline(config, progress=None)` — run the configured stages; returns a dict
-  of in-memory products and output paths. `progress(stage, message)` is an optional
-  callback for live UIs.
-
-## Worked example
+## Get data
 
 ```python
-import chase, numpy as np
+# Download one file (resumable, retries)
+path = chase.download("https://ssdc.nju.edu.cn/.../RSM..._HA.fits", save_dir="./data")
 
-seq = chase.load_flare_sequence("data/.../fits", patch=[940,1080,1870,2040],
-                                align_patch=[980,1040,1920,1990])   # small align box
-aligned, fe_aligned = chase.optical_flow_align(
-    seq["ha_cubes"], reference=seq["align_ref"], extra_cubes=seq["fe_cubes"])
+# Or resolve any input kind: a folder, one file, a .txt of URLs, or a URL
+paths = chase.resolve_inputs("urls.txt", save_dir="./data")
 
-# absolute Fe I photospheric temperature
-dc_cube, dc_wav, _ = chase.extract_disk_center("data/.../RSM...FE.fits")
-ifact, woff = chase.atlas_calibrate(dc_wav, dc_cube)
-T_phot, _ = chase.fe_planck_temperature(fe_aligned[24], seq["wavelength_fe"], ifact)
-print(np.nanmedian(T_phot), "K")   # ~5100 K quiet photosphere
+# Find the cubes in a folder
+ha_files, fe_files = chase.discover_fits("./data")
 ```
+
+Portal walkthrough with screenshots: [DATA_ACQUISITION.md](DATA_ACQUISITION.md).
+
+## Load
+
+One cube:
+
+```python
+cube, header, wav = chase.load_cube("RSM..._HA.fits")
+cube.shape      # (118, H_full, W_full)
+wav[:3]         # array([6559.4 , 6559.45, 6559.49])  from CRVAL3/CDELT3
+```
+
+A whole flare sequence, tracked and resampled in one call:
+
+```python
+seq = chase.load_flare_sequence("/data/fits",
+                                patch=[940, 1080, 1870, 2040],       # [y0, y1, x0, x1]
+                                align_patch=[980, 1040, 1920, 1990]) # optional, smaller
+```
+
+What you get back:
+
+| Key | Shape / type | Meaning |
+|---|---|---|
+| `ha_cubes` | `(nframes, nλ_ha, H, W)` | tracked, resampled Hα stack |
+| `fe_cubes` | same or `None` | Fe I stack, if `*FE.fits` present |
+| `cont_raw`, `core_raw` | `(nframes, H, W)` | continuum / core images |
+| `align_ref` | `(nframes, H, W)` | flare-free channel used for alignment |
+| `ha_bg` | `(nframes, nλ_ha, H, W)` or `None` | quiet-Sun background patch |
+| `wavelength_ha`, `wavelength_fe` | `(nλ,)` | common wavelength grids (Å) |
+| `times` | list of str | `DATE-OBS` per frame |
+| `core_idx` | int | index of the Hα core channel |
+| `patch` | ndarray | the crop window |
+
+Switches: `track=False` disables crop tracking, `resample=False` keeps each frame's own wavelength grid.
+
+## Stabilise
+
+```python
+ha_al, fe_al = chase.optical_flow_align(seq["ha_cubes"],
+                                        reference=seq["align_ref"],
+                                        method="farneback",          # or "tvl1"
+                                        extra_cubes=seq["fe_cubes"])
+```
+
+The flow is estimated once on the reference channel and the same warp is applied to every wavelength of both cubes, in float32. Without `extra_cubes` it returns just the aligned HA stack. Use `farneback` for flares; TV-L1 turns the flare peak into a rigid block ([FLARE_STABILIZATION.md](FLARE_STABILIZATION.md)).
+
+Lower-level pieces if you want the steps separately:
+
+```python
+sy, sx = chase.phase_shift(ref_img, target_img)          # subpixel xcorr shift
+cropped, shifts = chase.track_and_crop(frames, patch)    # shift-then-crop
+warped = chase.warp_cube(cube, map_x, map_y)             # apply a flow map yourself
+cx, cy, r = chase.hough_disk_center(full_disk_image)     # limb fit (satprocess)
+```
+
+## Wavelength
+
+Two corrections, both optional everywhere:
+
+```python
+# Header-based: resample a cube from its own grid onto a target grid
+fixed = chase.resample_wavelength(cube, src_wav, dst_wav)     # cubic interp
+
+# Data-driven: cross-correlate mean spectra against frame 0, shift subpixel
+corrected, shifts = chase.correct_spectral_drift(ha_cubes)
+shifts          # array([ 0.  , -0.31, -0.62, ...])  channels
+```
+
+`load_flare_sequence(..., resample=False)` skips the first. `contrast_profile(..., correct_drift=False)` skips the second. Why they exist: each frame's zero-point drifts ~0.8 channels, and on the steep Hα wings that manufactures fake contrast ([CALIBRATION.md](CALIBRATION.md) §2).
+
+## Intensity
+
+```python
+norm = chase.normalize_intensity(cube, ref_cube)              # quiet-Sun normalisation
+factor = chase.integral_scaling(ref_spec, target_spec)        # satprocess integral match
+
+# Absolute calibration against the FTS atlas (pip install 'chasepy[atlas]')
+dc_cube, dc_wav, _ = chase.extract_disk_center("RSM..._FE.fits")
+ifact, woff = chase.atlas_calibrate(dc_wav, dc_cube)
+ifact           # intensity factor to physical units
+woff            # wavelength offset (Å)
+```
+
+## Contrast
+
+```python
+contrast, spectra = chase.contrast_profile(ha_al, background=seq["ha_bg"])
+contrast.shape  # (nframes, nλ)   (flare - bg)/bg - frame0
+contrast[24].max()   # peak-frame line-core enhancement, e.g. 0.12
+```
+
+`background=None` falls back to frame 0 of the flare patch itself. `correct_drift=False` skips the spectral drift correction.
+
+## Temperature
+
+Chromosphere, from the Hα line width (Molnar et al. 2019):
+
+```python
+T, width = chase.halpha_width_temperature(ha_al[24], seq["wavelength_ha"])
+T.shape         # (H, W), Kelvin, ~1e4 K
+```
+
+Photosphere, from Fe I. Three estimators, all needing the atlas `ifact`:
+
+```python
+T, core = chase.fe_planck_temperature(fe_al[24], seq["wavelength_fe"], ifact)
+import numpy as np
+np.nanmedian(T)      # ~5100 K quiet photosphere
+
+T_cube, T_core, T_cont = chase.fe_eb_temperature(fe_al[24], seq["wavelength_fe"], ifact)
+T, core, center = chase.fe_voigt_temperature(fe_al[24], seq["wavelength_fe"], ifact)
+```
+
+Planck fits a Gaussian core. Eddington-Barbier gives core and continuum temperatures. Voigt handles under-sampled lines best. Pick per [CALIBRATION.md](CALIBRATION.md) §8.
+
+## Animate
+
+```python
+gif = chase.make_animation(cont_al, core_al, times=seq["times"],
+                           output_path="flare.gif", freeze_clim=True)
+
+gif = chase.make_contrast_animation(ha_al, seq["wavelength_ha"], contrast,
+                                    seq["core_idx"], output_path="contrast.gif",
+                                    flarestart=15, flarepeak=24, flareclass="X2.1")
+
+gif = chase.make_temperature_animation(ha_T_stack, fe_T_stack, core_imgs,
+                                       output_path="temperature.gif")
+```
+
+Each returns the output path. Diagnostic single plots live in `chase.viz.diagnostics`: `plot_patch_overlay`, `plot_qs_spectrum`, `plot_shift_track`, `plot_atlas_calibration`.
+
+## Save
+
+```python
+chase.save_npz("out.npz", ha=ha_al, wav=seq["wavelength_ha"])   # compressed
+chase.save_cube_fits(ha_al[0], "frame0.fits", header=header)
+```
+
+## Run the whole thing
+
+```python
+from chase import Config, run_pipeline
+
+cfg = Config(fits_dir="/data/fits", patch=[940, 1080, 1870, 2040],
+             contrast=True, temperature="double")
+results = run_pipeline(cfg)
+
+results["aligned"]["ha"]     # in-memory stabilised stack
+results["npz"]               # path to aligned_data.npz
+results["contrast_npy"]      # path to contrast_profile.npy
+```
+
+Rerun a single output later. `resume=True` reads `out_dir/aligned_data.npz` back instead of touching the FITS:
+
+```python
+run_pipeline(Config(fits_dir="/data/fits", out_dir="./chase_out",
+                    resume=True, temperature="fe_voigt", gif=True))
+```
+
+`progress=` takes a `(stage, message)` callback for live UIs. `load_config("file.toml")` builds a `Config` from TOML; every field maps one to one. The full field list is the `Config` docstring, or [examples/config.toml](../examples/config.toml) annotated.
 
 ## Backward compatibility
 
-The old flat API still works: `from chase.core import run_pipeline, load_fits_data,
-find_disk_center, …`. New code should prefer the submodule / top-level imports above.
+The pre-2.0 flat API still works: `from chase.core import run_pipeline, load_fits_data, find_disk_center, ...`. New code should import from the top level as above.

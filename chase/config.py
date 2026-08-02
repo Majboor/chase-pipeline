@@ -36,6 +36,8 @@ class Config:
         Hα core wavelength in Å.
     track : bool
         Cross-correlation crop tracking (shift-then-crop).
+    smooth_shifts : bool
+        Robust outlier rejection on the tracking shifts, per scan parity.
     resample_wavelength : bool
         Per-frame wavelength resampling onto frame 0's grid.
     optical_flow : bool
@@ -71,6 +73,7 @@ class Config:
     core_wavelength: float = 6562.8
 
     track: bool = True
+    smooth_shifts: bool = True
     resample_wavelength: bool = True
     optical_flow: bool = True
     flow_method: str = "tvl1"

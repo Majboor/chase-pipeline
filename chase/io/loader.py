@@ -28,7 +28,51 @@ from ..calib.spatial import phase_shift
 from ..calib.wavelength import resample_wavelength
 from .download import discover_fits
 
-__all__ = ["load_flare_sequence"]
+__all__ = ["load_flare_sequence", "robust_shifts"]
+
+
+def robust_shifts(shifts, threshold=4.0, verbose=False):
+    """Reject per-frame tracking outliers, treating odd and even scans separately.
+
+    CHASE RSM scans alternate raster direction, so odd and even frames can carry
+    a real, fixed geometric offset; each parity is therefore smoothed
+    independently and any true alternating pattern survives. Within a parity the
+    telescope drift is smooth in time, so a shift deviating from its parity's
+    running median by more than ``threshold`` pixels is a failed correlation
+    (e.g. the tracker locking onto the limb) and is replaced by that median.
+
+    Parameters
+    ----------
+    shifts : sequence of (sy, sx)
+        Per-frame shifts as measured by cross-correlation.
+    threshold : float, optional
+        Outlier rejection threshold in pixels (default 4).
+    verbose : bool, optional
+        Print each corrected frame.
+
+    Returns
+    -------
+    list of (sy, sx) floats, same length, outliers replaced.
+    """
+    from scipy.ndimage import median_filter
+
+    arr = np.asarray(shifts, dtype=float)
+    out = arr.copy()
+    for parity in (0, 1):
+        idx = np.arange(parity, len(arr), 2)
+        if len(idx) < 3:
+            continue
+        for axis in (0, 1):
+            series = arr[idx, axis]
+            med = median_filter(series, size=3, mode="nearest")
+            bad = np.abs(series - med) > threshold
+            out[idx[bad], axis] = med[bad]
+            if verbose:
+                for j in idx[bad]:
+                    ax_name = "y" if axis == 0 else "x"
+                    print(f"  Frame {j:>2d}: {ax_name}-shift {arr[j, axis]:+.0f} is an outlier "
+                          f"for its scan parity; using {out[j, axis]:+.0f}")
+    return [tuple(row) for row in out]
 
 
 def load_flare_sequence(
@@ -39,6 +83,7 @@ def load_flare_sequence(
     track: bool = True,
     pad: int = 20,
     resample: bool = True,
+    smooth_shifts: bool = True,
     verbose: bool = True,
 ):
     """Load and crop-track a CHASE HA(+FE) sequence from a directory.
@@ -59,6 +104,10 @@ def load_flare_sequence(
         Shift-then-crop padding in pixels.
     resample : bool, optional
         Per-frame wavelength resampling onto frame 0's grid.
+    smooth_shifts : bool, optional
+        Robust outlier rejection on the tracking shifts (see
+        :func:`robust_shifts`). Failed correlations otherwise leave whole
+        frames misaligned by their full drift.
     verbose : bool, optional
 
     Returns
@@ -102,14 +151,34 @@ def load_flare_sequence(
     oy, ox = y0 - py0, x0 - px0
 
     # Reference crop for tracking: prefer FE last wavelength (flare-free).
+    # .section reads only the needed tiles from tile-compressed cubes.
     if has_fe:
-        ref_crop = fits.open(fe_names[0])[1].data[-1, ay0:ay1, ax0:ax1].astype(np.float32)
+        with fits.open(fe_names[0], memmap=True) as _h:
+            ref_crop = np.asarray(_h[1].section[-1, ay0:ay1, ax0:ax1], dtype=np.float32)
         if verbose:
             print("   Alignment reference: FE last wavelength (flare-free)")
     else:
-        ref_crop = fits.open(ha_names[0])[1].data[-1, ay0:ay1, ax0:ax1].astype(np.float32)
+        with fits.open(ha_names[0], memmap=True) as _h:
+            ref_crop = np.asarray(_h[1].section[-1, ay0:ay1, ax0:ax1], dtype=np.float32)
         if verbose:
             print("   Alignment reference: HA continuum (FE not available)")
+
+    # Pass 1: measure every frame's shift on the tracking channel, then clean
+    # the series as a whole. Per-frame decisions can't tell a failed
+    # correlation from real drift; the full series can.
+    if patch is not None and track:
+        shifts = []
+        for i in range(nframes):
+            track_name = fe_names[i] if has_fe else ha_names[i]
+            with fits.open(track_name, memmap=True) as _h:
+                cur = np.asarray(_h[1].section[-1, ay0:ay1, ax0:ax1], dtype=np.float32)
+            sy, sx = phase_shift(ref_crop, cur)
+            shifts.append((float(sy), float(sx)))
+        if smooth_shifts:
+            shifts = robust_shifts(shifts, verbose=verbose)
+        shifts = [(int(round(sy)), int(round(sx))) for sy, sx in shifts]
+    else:
+        shifts = [(0, 0)] * nframes
 
     # Quiet-Sun background patch, offset left by one patch width.
     bg_dx = -(x1 - x0)
@@ -137,15 +206,10 @@ def load_flare_sequence(
             hdr_fe = hdu_fe.header
             wav_fe_i = np.arange(hdr_fe["NAXIS3"]) * hdr_fe["CDELT3"] + hdr_fe["CRVAL3"]
 
-        # Shift-then-crop: estimate integer shift on the align window.
-        if patch is not None and track:
-            cur = (cube_fe if has_fe else cube_ha)[-1, ay0:ay1, ax0:ax1].astype(np.float32)
-            sy, sx = phase_shift(ref_crop, cur)
-            sy, sx = int(round(sy)), int(round(sx))
-            if verbose and (sy or sx):
-                print(f"  Frame {i:>2d}: shift y={sy:+d}, x={sx:+d}")
-        else:
-            sy, sx = 0, 0
+        # Shift-then-crop with the pass-1 (cleaned) shift for this frame.
+        sy, sx = shifts[i]
+        if verbose and (sy or sx):
+            print(f"  Frame {i:>2d}: shift y={sy:+d}, x={sx:+d}")
         cy, cx = oy - sy, ox - sx
 
         ha_crop = cube_ha[:, py0:py1, px0:px1][:, cy:cy + H, cx:cx + W].astype(np.float32)
@@ -192,4 +256,5 @@ def load_flare_sequence(
         "nchannels_fe": nch_fe,
         "core_idx": core_idx,
         "patch": np.array(patch) if patch is not None else np.array([]),
+        "shifts": shifts,
     }

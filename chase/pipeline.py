@@ -71,6 +71,7 @@ def run_pipeline(config: Config, progress: Optional[ProgressFn] = None) -> dict:
             align_patch=config.align_patch,
             core_wavelength=config.core_wavelength,
             track=config.track,
+            smooth_shifts=config.smooth_shifts,
             resample=config.resample_wavelength,
             verbose=True,
         )

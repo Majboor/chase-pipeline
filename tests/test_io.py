@@ -57,3 +57,28 @@ def test_extract_disk_center(synthetic_dataset):
     # CRPIX of the synthetic data is the image centre
     assert abs(cy - synthetic_dataset["H"] // 2) <= 1
     assert abs(cx - synthetic_dataset["W"] // 2) <= 1
+
+
+def test_robust_shifts_rejects_outliers_preserving_parity():
+    """A failed correlation is replaced by its parity's trend; a real
+    alternating (bidirectional-scan) offset survives untouched."""
+    from chase.io import robust_shifts
+
+    # even frames drift around y=-8, odd frames around y=-14 (real parity offset)
+    shifts = [(-8, 0), (-14, -9), (-8, 0), (-14, -9), (-9, 1), (-15, -8),
+              (0, 3),  # frame 6: failed correlation (even parity, should be ~-8)
+              (-14, -9), (-8, 0), (-13, -8)]
+    fixed = robust_shifts(shifts, threshold=4.0)
+
+    assert fixed[6][0] == -8.0          # outlier y replaced by parity median
+    assert fixed[1] == (-14.0, -9.0)    # genuine parity offset untouched
+    assert fixed[0] == (-8.0, 0.0)
+    assert [f for i, f in enumerate(fixed) if i != 6] == \
+           [tuple(map(float, s)) for i, s in enumerate(shifts) if i != 6]
+
+
+def test_robust_shifts_short_series_passthrough():
+    from chase.io import robust_shifts
+
+    shifts = [(0, 0), (1, -2), (-1, 1), (2, 0)]
+    assert robust_shifts(shifts) == [tuple(map(float, s)) for s in shifts]

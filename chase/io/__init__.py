@@ -9,7 +9,7 @@ from .fits_io import (
     save_npz,
     wavelength_grid,
 )
-from .loader import load_flare_sequence
+from .loader import load_flare_sequence, robust_shifts
 
 __all__ = [
     "discover_fits",
@@ -22,4 +22,5 @@ __all__ = [
     "save_npz",
     "wavelength_grid",
     "load_flare_sequence",
+    "robust_shifts",
 ]

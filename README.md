@@ -44,20 +44,23 @@ tool** that:
 
 ## Install
 
-Clone the repository first, then install from the clone:
+From PyPI (the package is named `chasepy`; it installs the `chase` module and
+the `chase` / `chase-tui` commands):
+
+```bash
+pip install chasepy              # core
+pip install 'chasepy[tui]'       # + Textual TUI  (chase-tui)
+pip install 'chasepy[atlas]'     # + ISPy for absolute Fe I temperature calibration
+pip install 'chasepy[all]'       # everything, incl. test deps
+```
+
+Or for development, clone and install editable:
 
 ```bash
 git clone https://github.com/Majboor/chase-pipeline.git
 cd chase-pipeline
-
-pip install -e .                 # core
-pip install -e '.[tui]'          # + Textual TUI  (chase-tui)
-pip install -e '.[atlas]'        # + ISPy for absolute Fe I temperature calibration
-pip install -e '.[all]'          # everything, incl. test deps
+pip install -e '.[all]'
 ```
-
-A PyPI release (`pip install chase-pipeline`) is planned; until then the
-clone-and-install route above is the supported one.
 
 ## Three ways to use it
 

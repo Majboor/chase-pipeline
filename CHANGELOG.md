@@ -8,6 +8,8 @@ All notable changes to this project are documented here. Format loosely follows
 A ground-up rebuild into a modular, multi-front-end package.
 
 ### Added
+- **PyPI packaging as `chasepy`** — `pip install chasepy` installs the `chase`
+  module and the `chase` / `chase-tui` commands.
 - **Resume / step skipping** — `Config.resume` (CLI `--resume`, TUI checkbox)
   reuses `out_dir/aligned_data.npz` from a previous run, skipping the slow
   load + align stages so individual output steps can be rerun without

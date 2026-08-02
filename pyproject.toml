@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chase-pipeline"
+name = "chasepy"
 version = "2.0.0"
 description = "Modular CHASE/HIS solar calibration and flare-analysis pipeline (TUI + SDK + CLI)"
 readme = "README.md"

@@ -1,6 +1,6 @@
 # chase-pipeline
 
-Calibration and flare analysis for CHASE/HIS solar spectroscopy. One pip install gets you a Python SDK, a CLI, a TUI, and a config-file workflow, all driving the same functions.
+Calibration and flare analysis for CHASE/HIS solar spectroscopy. Install one package, point it at data, get aligned cubes, animations, contrast profiles, and temperature maps.
 
 [![tests](https://github.com/Majboor/chase-pipeline/actions/workflows/test.yml/badge.svg)](https://github.com/Majboor/chase-pipeline/actions/workflows/test.yml)
 [![PyPI](https://img.shields.io/pypi/v/chasepy)](https://pypi.org/project/chasepy/)
@@ -9,111 +9,111 @@ Calibration and flare analysis for CHASE/HIS solar spectroscopy. One pip install
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/flare.gif" width="760" alt="Stabilised 2-panel animation of the 2023-03-29 X2.1 flare"><br>
-  <em>The 2023-03-29 X2.1 flare, stabilised by this pipeline. Photosphere (Hα continuum) left, chromosphere (Hα core) right. Rendered with <code>--flow-method farneback</code>; see <a href="docs/FLARE_STABILIZATION.md">docs/FLARE_STABILIZATION.md</a> for why not TV-L1.</em>
+  <em>The 2023-03-29 X2.1 flare, stabilised by this pipeline. Photosphere left, chromosphere right.</em>
 </p>
 
 ## Install
 
 ```bash
-pip install chasepy              # installs the `chase` module + `chase` and `chase-tui` commands
-pip install 'chasepy[tui]'       # + Textual TUI
-pip install 'chasepy[atlas]'     # + ISPy, for absolute Fe I calibration
-pip install 'chasepy[all]'       # everything incl. test deps
+pip install chasepy
 ```
 
-## 60 seconds to a result
+That gives you the `chase` module, the `chase` command, and the `chase-tui` interactive app. Extras: `pip install 'chasepy[tui]'` (TUI), `'chasepy[atlas]'` (absolute Fe I calibration), `'chasepy[all]'` (everything).
 
-One command. Point at a folder of `RSM*_HA.fits` (+ optional `*_FE.fits`) cubes:
+## Get data
+
+Two ways.
+
+**Option 1: our hosted dataset.** We host ready-to-use CHASE observations on an S3 server, including the 2026-07-04 M3.2 flare (48 files, 8.65 GiB). No portal account, no expiring links:
+
+```python
+import boto3
+s3 = boto3.client("s3", endpoint_url="https://s3.preservemy.world",
+                  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY,
+                  region_name="garage")
+s3.download_file("chase-data",
+                 "events/2026/07/04/M3.2/raw/HA/RSM20260704T132940_0000_HA.fits",
+                 "data/RSM20260704T132940_0000_HA.fits")
+```
+
+Read credentials are free for research use: see [docs/S3_DATA.md](docs/S3_DATA.md) for the full guide (bucket layout, Colab setup, s3fs) and how to get keys.
+
+**Option 2: the CHASE portal.** Request signed URLs from [ssdc.nju.edu.cn](https://ssdc.nju.edu.cn), then `chase` downloads them for you: pass a `.txt` of URLs, a URL, or a folder of already-downloaded `*.fits`. Walkthrough: [docs/DATA_ACQUISITION.md](docs/DATA_ACQUISITION.md).
+
+## Run it
+
+**Run this:**
 
 ```bash
-chase /data/20230329_X12/fits --patch 940 1080 1870 2040 --contrast --temperature double
+chase ./data --patch 940 1080 1870 2040 --contrast --temperature halpha
 ```
 
-You get, in `./chase_out/`:
+**What happens:** loads every scan, tracks the patch across frames, resamples wavelengths onto one grid, stabilises with optical flow, then writes results to `./chase_out/`:
 
-| File | What it is |
+| You get | What it is |
 |---|---|
-| `aligned_data.npz` | raw + aligned cubes, wavelengths, times. Also the resume checkpoint |
 | `flare.gif` | photosphere / chromosphere animation |
-| `contrast_profile.gif`, `contrast_profile.npy` | wavelength-vs-time flare contrast |
-| `ha_temp_maps.npy`, `fe_temp_maps.npy`, `temperature.gif` | temperature maps |
+| `contrast_profile.gif` + `.npy` | wavelength-vs-time flare contrast |
+| `ha_temp_maps.npy` + `temperature.gif` | chromospheric temperature maps |
+| `aligned_data.npz` | the aligned cubes (also the resume checkpoint) |
 | `diag_*.png` | patch overlay, quiet-Sun spectrum |
 
-Same thing in Python:
+No patch coordinates yet? Run with `--full-fov --no-optical-flow --no-track` first, look at `diag_qs_spectrum.png` and the GIF, then pick a `[y0 y1 x0 x1]` box.
+
+## Rerun just one thing
+
+The first run saved a checkpoint, so reruns skip the slow loading and alignment:
+
+```bash
+chase ./data --out ./chase_out --only gif           # re-render the animation. Takes seconds
+chase ./data --out ./chase_out --only contrast      # recompute contrast only
+chase ./data --out ./chase_out --only temperature --temperature fe_voigt
+```
+
+## Turn things off
+
+Every stage has a switch. Mix freely:
+
+| Flag | What it disables |
+|---|---|
+| `--no-track` | cross-correlation patch tracking |
+| `--no-resample` | per-frame wavelength resampling |
+| `--no-drift` | spectral drift correction in the contrast stage |
+| `--no-optical-flow` | optical-flow stabilisation |
+| `--no-gif`, `--no-npz`, `--no-diagnostics` | those outputs |
+
+`--no-resample --no-drift` together = completely untouched wavelength axis.
+
+## The same thing in Python
 
 ```python
 from chase import Config, run_pipeline
 
-results = run_pipeline(Config(fits_dir="/data/20230329_X12/fits",
-                              patch=[940, 1080, 1870, 2040],
-                              contrast=True, temperature="double"))
-results["aligned"]["ha"].shape   # (25, 118, 140, 170)  float32, stabilised
-results["contrast"].shape        # (25, 118)
-results["gif"]                   # './chase_out/flare.gif'
+results = run_pipeline(Config(fits_dir="./data", patch=[940, 1080, 1870, 2040],
+                              contrast=True, temperature="halpha"))
+
+results["aligned"]["ha"].shape    # (nframes, 118, H, W) stabilised float32
+results["contrast"].shape         # (nframes, 118)
+results["gif"]                    # './chase_out/flare.gif'
 ```
 
-## Rerun one step, skip the slow part
+Rerun one step from the checkpoint: add `resume=True` and only the toggles you want.
 
-Every run checkpoints the aligned cubes. Rerunning an output takes seconds, not the minutes load + align costs:
-
-```bash
-chase /data --out ./chase_out --only gif                        # re-render the animation
-chase /data --out ./chase_out --only contrast,gif --no-drift    # contrast without drift correction
-chase /data --out ./chase_out --only temperature --temperature fe_voigt
-chase /data --out ./chase_out --resume --contrast               # resume + your usual flags
-```
-
-Steps for `--only`: `gif`, `contrast`, `temperature`, `npz`, `fits`, `diagnostics`. The checkpoint stores the cubes as cropped and aligned, so changing the patch or the resampling flag needs one fresh run without `--resume`.
-
-```python
-run_pipeline(Config(fits_dir="/data", out_dir="./chase_out",
-                    resume=True, temperature="fe_voigt"))
-```
-
-## Use single functions
-
-Nothing forces the full pipeline. Each stage is a plain function:
+Or skip the pipeline and call single functions:
 
 ```python
 import chase
 
-# One cube
-cube, header, wav = chase.load_cube("RSM20230329T..._HA.fits")
-cube.shape                       # (118, H_full, W_full)  full disk, float32
-
-# A tracked, wavelength-resampled sequence
-seq = chase.load_flare_sequence("/data/fits", patch=[940, 1080, 1870, 2040])
-seq["ha_cubes"].shape            # (25, 118, 140, 170)
-seq["wavelength_ha"][seq["core_idx"]]   # ~6562.8  (Å, the Hα core channel)
-
-# Stabilise. FE cubes get the same warp as HA
-ha_al, fe_al = chase.optical_flow_align(seq["ha_cubes"], reference=seq["align_ref"],
-                                        method="farneback", extra_cubes=seq["fe_cubes"])
-
-# Contrast profile: (flare - bg)/bg - frame0
-contrast, spectra = chase.contrast_profile(ha_al, background=seq["ha_bg"])
-
-# Chromospheric temperature from Hα width (Molnar et al. 2019)
-T, width = chase.halpha_width_temperature(ha_al[24], seq["wavelength_ha"])
-
-# Photospheric temperature, absolute-calibrated against the FTS atlas (needs ISPy)
-dc_cube, dc_wav, _ = chase.extract_disk_center("RSM..._FE.fits")
-ifact, woff = chase.atlas_calibrate(dc_wav, dc_cube)
-T_phot, _ = chase.fe_planck_temperature(fe_al[24], seq["wavelength_fe"], ifact)
+cube, hdr, wav = chase.load_cube("RSM..._HA.fits")          # one cube: (118, H, W) + wavelengths
+seq = chase.load_flare_sequence("./data", patch=[...])      # tracked + resampled sequence
+ha_al = chase.optical_flow_align(seq["ha_cubes"], reference=seq["align_ref"])
+contrast, _ = chase.contrast_profile(ha_al, background=seq["ha_bg"])
+T, width = chase.halpha_width_temperature(ha_al[12], seq["wavelength_ha"])
 ```
 
-Turning calibrations off is explicit. Both wavelength corrections have a switch:
+Each line works on its own. Full list with snippets: [docs/SDK.md](docs/SDK.md).
 
-```python
-seq = chase.load_flare_sequence("/data/fits", patch=[...], resample=False)  # keep raw λ grids
-contrast, _ = chase.contrast_profile(ha_al, correct_drift=False)            # no xcorr shift
-```
-
-CLI equivalents: `--no-resample`, `--no-drift`. Also `--no-track` and `--no-optical-flow`.
-
-Full function list with signatures: [docs/SDK.md](docs/SDK.md).
-
-## TUI
+## Prefer clicking to typing?
 
 ```bash
 chase-tui
@@ -123,24 +123,7 @@ chase-tui
   <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.gif" width="800" alt="End-to-end chase-tui walkthrough">
 </p>
 
-Pick a data source, set the field of view, tick the calibrations and outputs you want, hit Run. Progress streams into the log pane. Every checkbox maps to one `Config` field; the TUI adds no logic of its own. Full-resolution video: [assets/tui_e2e_walkthrough.mp4](https://github.com/Majboor/chase-pipeline/raw/feat/unified-pipeline-tui-sdk/assets/tui_e2e_walkthrough.mp4).
-
-## Config file
-
-```bash
-chase --config examples/config.toml
-```
-
-```toml
-fits_dir = "/data/20230329_X12/fits"
-out_dir  = "./chase_out"
-patch    = [940, 1080, 1870, 2040]   # [y0, y1, x0, x1]
-contrast = true
-temperature = "double"               # halpha + fe_planck
-resume = false                       # true: reuse the checkpoint, skip load + align
-```
-
-Every key mirrors a `Config` field. Full annotated example: [examples/config.toml](examples/config.toml).
+Every checkbox is one of the switches above. There is also a one-file config workflow: `chase --config my.toml`, keys mirror the flags ([examples/config.toml](examples/config.toml)).
 
 ## Why this exists (statement of need)
 
@@ -159,11 +142,12 @@ CHASE (the Chinese Hα Solar Explorer) scans the full solar disk in Hα (118 wav
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Majboor/chase-pipeline/feat/unified-pipeline-tui-sdk/assets/temperature.gif" width="720" alt="Double temperature map animation"><br>
-  <em>Double temperature map: chromosphere from Hα width (~10⁴ K), photosphere from Fe I Planck inversion (~5100 K, absolute-calibrated).</em>
+  <em>Double temperature map: chromosphere from Hα width (~10⁴ K), photosphere from Fe I Planck inversion (~5100 K).</em>
 </p>
 
 ## Documentation
 
+- [docs/S3_DATA.md](docs/S3_DATA.md): use our hosted CHASE datasets from anywhere (incl. Google Colab)
 - [docs/DATA_ACQUISITION.md](docs/DATA_ACQUISITION.md): CHASE portal to processed cube, end to end
 - [docs/SDK.md](docs/SDK.md): every function, with snippets
 - [docs/TUI.md](docs/TUI.md): TUI walkthrough

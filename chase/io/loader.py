@@ -38,8 +38,11 @@ def robust_shifts(shifts, threshold=4.0, verbose=False):
     a real, fixed geometric offset; each parity is therefore smoothed
     independently and any true alternating pattern survives. Within a parity the
     telescope drift is smooth in time, so a shift deviating from its parity's
-    running median by more than ``threshold`` pixels is a failed correlation
-    (e.g. the tracker locking onto the limb) and is replaced by that median.
+    Theil-Sen trend line by more than ``threshold`` pixels is a failed
+    correlation (e.g. the tracker locking onto the limb) and is replaced by
+    interpolation over the surviving frames of that parity. Theil-Sen (median of pairwise slopes) stays correct
+    with up to ~29% outliers, so clustered failures cannot corrupt it the
+    way they corrupt a short running median.
 
     Parameters
     ----------
@@ -54,24 +57,34 @@ def robust_shifts(shifts, threshold=4.0, verbose=False):
     -------
     list of (sy, sx) floats, same length, outliers replaced.
     """
-    from scipy.ndimage import median_filter
+    from scipy.stats import theilslopes
 
     arr = np.asarray(shifts, dtype=float)
     out = arr.copy()
     for parity in (0, 1):
         idx = np.arange(parity, len(arr), 2)
-        if len(idx) < 3:
+        if len(idx) < 4:
             continue
+        x = idx.astype(float)
         for axis in (0, 1):
             series = arr[idx, axis]
-            med = median_filter(series, size=3, mode="nearest")
-            bad = np.abs(series - med) > threshold
-            out[idx[bad], axis] = med[bad]
+            # Theil-Sen: median of pairwise slopes, robust to ~29% outliers,
+            # so clustered correlation failures cannot drag the trend.
+            slope, intercept, _, _ = theilslopes(series, x)
+            fit = intercept + slope * x
+            bad = np.abs(series - fit) > threshold
+            if bad.all() or not bad.any():
+                continue
+            # Replace by interpolating the surviving neighbours rather than the
+            # global fit: real drift is only locally linear (steps happen when
+            # the field crossing the limb changes the correlation content).
+            good = ~bad
+            out[idx[bad], axis] = np.round(np.interp(x[bad], x[good], series[good]))
             if verbose:
-                for j in idx[bad]:
+                for k in np.nonzero(bad)[0]:
                     ax_name = "y" if axis == 0 else "x"
-                    print(f"  Frame {j:>2d}: {ax_name}-shift {arr[j, axis]:+.0f} is an outlier "
-                          f"for its scan parity; using {out[j, axis]:+.0f}")
+                    print(f"  Frame {idx[k]:>2d}: {ax_name}-shift {series[k]:+.0f} is an outlier "
+                          f"for its scan parity; using {out[idx[k], axis]:+.0f}")
     return [tuple(row) for row in out]
 
 

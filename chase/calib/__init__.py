@@ -4,6 +4,8 @@ Every function here is usable on its own — nothing forces a full pipeline.
 """
 
 from .spatial import (
+    derotate,
+    derotate_crop,
     find_disk_center,
     hough_disk_center,
     phase_shift,
@@ -25,6 +27,8 @@ from .intensity import (
 )
 
 __all__ = [
+    "derotate",
+    "derotate_crop",
     # spatial
     "find_disk_center",
     "hough_disk_center",

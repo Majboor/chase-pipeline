@@ -43,6 +43,8 @@ download = download_file  # SDK alias
 # --- Calibration -----------------------------------------------------------
 from .calib import (
     align_spectrum,
+    derotate,
+    derotate_crop,
     atlas_calibrate,
     correct_spectral_drift,
     create_optical_flow_solver,
@@ -88,6 +90,7 @@ __all__ = [
     "load_cube", "load_fits_data", "load_flare_sequence", "extract_disk_center",
     "save_cube_fits", "save_npz",
     # calib
+    "derotate", "derotate_crop",
     "find_disk_center", "hough_disk_center", "recenter", "phase_shift",
     "track_and_crop", "optical_flow_align", "warp_cube",
     "create_optical_flow_solver", "resample_wavelength", "correct_spectral_drift",

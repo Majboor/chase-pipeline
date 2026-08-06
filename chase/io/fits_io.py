@@ -166,13 +166,22 @@ def save_aligned_fits(out_dir, seq, ha_al, plate_scale=1.04, prefix="aligned"):
         hdr["CDELT3"] = float(wav[1] - wav[0])
         hdr["CRPIX1"] = hdr["CRPIX2"] = 1.0
         hdr["CRPIX3"] = 1.0
-        hdr["CRVAL1"] = (x0 * plate_scale, "arcsec of crop origin, detector frame")
-        hdr["CRVAL2"] = (y0 * plate_scale, "arcsec of crop origin, detector frame")
+        crpx, crpy = seq.get("crpix", (0.0, 0.0))
+        hdr["CRVAL1"] = ((x0 - (crpx - 1.0)) * plate_scale,
+                         "helioprojective X of crop origin [arcsec]")
+        hdr["CRVAL2"] = ((y0 - (crpy - 1.0)) * plate_scale,
+                         "helioprojective Y of crop origin [arcsec]")
+        hdr["INSTROT"] = (float(seq.get("inst_rot", 0.0)),
+                          "solar north vs detector y-axis [deg]")
+        hdr["DEROT"] = (bool(seq.get("derotated", False)),
+                        "frames rotated to solar north by chasepy")
         hdr["CRVAL3"] = float(wav[0])
         hdr["PATCHY0"], hdr["PATCHX0"] = y0, x0
         hdr["TRKSH_Y"] = (int(shifts[i][0]), "tracking shift applied [px]")
         hdr["TRKSH_X"] = (int(shifts[i][1]), "tracking shift applied [px]")
         hdr["HISTORY"] = "chasepy: shift-then-crop tracking (robust per-parity shifts)"
+        if seq.get("derotated"):
+            hdr["HISTORY"] = "chasepy: derotated to solar north (INST_ROT from header)"
         hdr["HISTORY"] = "chasepy: wavelength resampled onto scan-0 grid (cubic)"
         hdr["HISTORY"] = "chasepy: optical-flow stabilised (flare-free reference)"
         path = os.path.join(out_dir, f"{prefix}_{i:04d}_HA.fits")

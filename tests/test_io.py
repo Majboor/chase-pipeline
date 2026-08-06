@@ -82,3 +82,49 @@ def test_robust_shifts_short_series_passthrough():
 
     shifts = [(0, 0), (1, -2), (-1, 1), (2, 0)]
     assert robust_shifts(shifts) == [tuple(map(float, s)) for s in shifts]
+
+
+def test_loader_derotate_flag(synthetic_dataset):
+    """With no INST_ROT in the headers, derotate=True must be a no-op and the
+    sequence must still record the derotation metadata."""
+    import numpy as np
+
+    from chase.io import load_flare_sequence
+
+    kw = dict(patch=synthetic_dataset["patch"], track=False, resample=False,
+              verbose=False)
+    plain = load_flare_sequence(synthetic_dataset["dir"], **kw)
+    rot = load_flare_sequence(synthetic_dataset["dir"], derotate=True, **kw)
+
+    assert np.allclose(rot["ha_cubes"], plain["ha_cubes"], atol=1e-3)
+    assert rot["derotated"] is True and plain["derotated"] is False
+    assert rot["inst_rot"] == 0.0
+    assert len(rot["crpix"]) == 2 and rot["cdelt"] > 0
+
+
+def test_loader_derotate_rotates_content(tmp_path):
+    """A synthetic file with INST_ROT=90 must come back rotated: a dot east of
+    the disc centre lands south of it (the pinned chasepy convention)."""
+    import astropy.io.fits as fits
+    import numpy as np
+
+    from chase.io import load_flare_sequence
+
+    n, size = 3, 64
+    cube = np.full((n, size, size), 100.0, dtype=np.float32)
+    cube[:, 32, 50] = 5000.0                 # east of centre
+    hdu = fits.ImageHDU(data=cube)
+    hdu.header["CRVAL3"] = 6559.4
+    hdu.header["CDELT3"] = 0.1
+    hdu.header["CRPIX1"] = 32.5              # one-based disc centre
+    hdu.header["CRPIX2"] = 32.5
+    hdu.header["INST_ROT"] = 90.0
+    hdu.header["DATE_OBS"] = "2023-03-29T02:12:31"
+    fits.HDUList([fits.PrimaryHDU(), hdu]).writeto(
+        tmp_path / "RSM20230329T021231_0000_HA.fits")
+
+    seq = load_flare_sequence(str(tmp_path), patch=None, track=False,
+                              resample=False, derotate=True, verbose=False)
+    img = seq["ha_cubes"][0, 0]
+    assert np.unravel_index(np.argmax(img), img.shape) == (13, 32)
+    assert seq["inst_rot"] == 90.0 and seq["derotated"] is True

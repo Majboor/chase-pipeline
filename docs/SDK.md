@@ -57,7 +57,7 @@ What you get back:
 | `core_idx` | int | index of the Hα core channel |
 | `patch` | ndarray | the crop window |
 
-Switches: `track=False` disables crop tracking, `resample=False` keeps each frame's own wavelength grid.
+Switches: `track=False` disables crop tracking, `resample=False` keeps each frame's own wavelength grid. `derotate=True` rotates every frame to solar north using the header `INST_ROT` angle about the disc centre before cropping (patch coordinates then refer to the north-up frame).
 
 ## Stabilise
 

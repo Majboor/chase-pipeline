@@ -23,12 +23,81 @@ from typing import List, Optional, Sequence, Tuple
 import numpy as np
 
 __all__ = [
+    "derotate",
+    "derotate_crop",
     "find_disk_center",
     "hough_disk_center",
     "phase_shift",
     "recenter",
     "track_and_crop",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Derotation to solar north
+# ---------------------------------------------------------------------------
+
+def derotate(image: np.ndarray, angle_deg: float,
+             center: Tuple[float, float]) -> np.ndarray:
+    """Rotate an image about ``center`` to align it with solar north.
+
+    CHASE Level-1 headers record ``INST_ROT``, the angle of solar north with
+    respect to the detector y-axis (~11 deg for the 2023 data). Unlike
+    instruments where this offset must be fitted against an external reference
+    (e.g. THEMIS, Peat et al. 2026), CHASE provides it in every file, so the
+    correction is a single rotation about the disc centre
+    (``CRPIX1``, ``CRPIX2``).
+
+    Parameters
+    ----------
+    image : ndarray (H, W)
+        A single spatial frame.
+    angle_deg : float
+        Rotation angle in degrees, OpenCV convention (positive rotates the
+        image content clockwise when displayed with ``origin='lower'``).
+        Pass the header's ``INST_ROT`` to bring solar north to +y. The header
+        does not state the sign convention of the angle; the default sign here
+        is chosen so a positive ``INST_ROT`` tilts features back toward the
+        y-axis, and should be validated once against a co-temporal SDO image.
+    center : (cx, cy)
+        Rotation centre in zero-based pixel coordinates
+        (``CRPIX1 - 1``, ``CRPIX2 - 1`` for FITS one-based headers).
+
+    Returns
+    -------
+    ndarray (H, W) float32
+        The derotated frame. Corners that rotate out of the field are filled
+        with 0.
+    """
+    import cv2
+
+    M = cv2.getRotationMatrix2D((float(center[0]), float(center[1])),
+                                float(angle_deg), 1.0)
+    return cv2.warpAffine(
+        np.ascontiguousarray(image, dtype=np.float32), M,
+        (image.shape[1], image.shape[0]),
+        flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0.0)
+
+
+def derotate_crop(image: np.ndarray, ys: int, ye: int, xs: int, xe: int,
+                  angle_deg: float, center: Tuple[float, float]) -> np.ndarray:
+    """Derotate a full frame and return only the window ``[ys:ye, xs:xe]``.
+
+    The rotation and the crop are composed into a single ``warpAffine`` call,
+    so only the requested window is ever computed --- rotating a whole CHASE
+    channel (2313x2304) to keep a 140x170 patch would waste two orders of
+    magnitude of work. The window coordinates refer to the *derotated* frame,
+    i.e. the same frame :func:`derotate` would return.
+    """
+    import cv2
+
+    M = cv2.getRotationMatrix2D((float(center[0]), float(center[1])),
+                                float(angle_deg), 1.0)
+    M[0, 2] -= xs
+    M[1, 2] -= ys
+    return cv2.warpAffine(
+        np.ascontiguousarray(image, dtype=np.float32), M, (xe - xs, ye - ys),
+        flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0.0)
 
 
 # ---------------------------------------------------------------------------

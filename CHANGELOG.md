@@ -15,6 +15,16 @@ All notable changes to this project are documented here. Format loosely follows
 A ground-up rebuild into a modular, multi-front-end package.
 
 ### Added
+- **Derotation to solar north** — CHASE detectors are mounted ~11 deg from
+  solar north (`INST_ROT` in every Level-1 header). `derotate=True` on
+  `load_flare_sequence` / `Config` (CLI `--derotate`, TUI checkbox) rotates
+  every frame about the disc centre (`CRPIX1`, `CRPIX2`) before cropping,
+  composing rotation and crop into one `warpAffine` so only the requested
+  window is computed. Standalone `chase.derotate` / `chase.derotate_crop`.
+  Unlike THEMIS-style calibrations the angle comes from the header rather
+  than being fitted. Exported FITS record the correction (`DEROT`,
+  `INSTROT`, HISTORY) and now carry true helioprojective `CRVAL1/2`
+  (origin at disc centre) instead of raw pixel*scale values.
 - **PyPI packaging as `chasepy`** — `pip install chasepy` installs the `chase`
   module and the `chase` / `chase-tui` commands.
 - **Resume / step skipping** — `Config.resume` (CLI `--resume`, TUI checkbox)

@@ -109,3 +109,49 @@ def test_molnar_width_to_temperature_monotonic():
     assert np.all(np.diff(temps) > 0)
     # ~10^4 K for a ~1.2 Å width (quiet chromosphere ballpark)
     assert 8000 < width_to_temperature(1.2) < 12000
+
+
+def test_derotate_convention_and_roundtrip():
+    """Pin the rotation convention (+angle = clockwise in origin='lower'
+    display: east -> south for +90 deg) and check the operation inverts."""
+    import numpy as np
+
+    from chase.calib.spatial import derotate
+
+    img = np.zeros((64, 64), np.float32)
+    img[32, 50] = 100.0                      # east of centre
+    out = derotate(img, 90.0, (31.5, 31.5))
+    assert np.unravel_index(np.argmax(out), out.shape) == (13, 32)
+
+    back = derotate(out, -90.0, (31.5, 31.5))
+    assert np.unravel_index(np.argmax(back), back.shape) == (32, 50)
+    assert back.max() > 90.0                 # interpolation loss stays small
+
+
+def test_derotate_crop_matches_full_rotation():
+    """The composed rotate+crop must equal cropping the fully rotated frame."""
+    import numpy as np
+
+    from chase.calib.spatial import derotate, derotate_crop
+
+    rng = np.random.default_rng(7)
+    img = rng.normal(1000.0, 50.0, (120, 140)).astype(np.float32)
+    ang, ctr = 11.0, (69.5, 59.5)
+    full = derotate(img, ang, ctr)[40:90, 30:100]
+    win = derotate_crop(img, 40, 90, 30, 100, ang, ctr)
+    assert win.shape == (50, 70)
+    # cv2 quantises interpolation coefficients (fixed-point), so folding the
+    # crop translation into the matrix changes results at the ~0.1% level;
+    # the geometry itself is identical.
+    d = np.abs(win - full)
+    assert d.mean() < 0.1 and np.percentile(d, 99) < 2.5
+
+
+def test_derotate_zero_angle_is_noop():
+    import numpy as np
+
+    from chase.calib.spatial import derotate_crop
+
+    img = np.arange(48 * 48, dtype=np.float32).reshape(48, 48)
+    win = derotate_crop(img, 10, 30, 5, 40, 0.0, (23.5, 23.5))
+    assert np.allclose(win, img[10:30, 5:40], atol=1e-3)

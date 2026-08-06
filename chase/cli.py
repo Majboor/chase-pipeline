@@ -42,6 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-track", action="store_true", help="Disable crop tracking")
     p.add_argument("--no-smooth-shifts", action="store_true",
                    help="Disable outlier rejection on tracking shifts")
+    p.add_argument("--derotate", action="store_true",
+                   help="Rotate frames to solar north using the header INST_ROT angle")
     p.add_argument("--no-resample", action="store_true", help="Disable wavelength resampling")
     p.add_argument("--no-drift", action="store_true",
                    help="Disable spectral drift correction in the contrast stage")
@@ -112,6 +114,8 @@ def config_from_args(args) -> Config:
         cfg.track = False
     if args.no_smooth_shifts:
         cfg.smooth_shifts = False
+    if args.derotate:
+        cfg.derotate = True
     if args.no_resample:
         cfg.resample_wavelength = False
     if args.no_optical_flow:

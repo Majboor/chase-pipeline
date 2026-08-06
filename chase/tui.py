@@ -93,6 +93,7 @@ if _textual_available():
                     yield Static("Calibration", classes="h")
                     yield Checkbox("Crop tracking (shift-then-crop)", value=True, id="track")
                     yield Checkbox("Smooth tracking shifts (outlier rejection)", value=True, id="smooth_shifts")
+                    yield Checkbox("Derotate to solar north (INST_ROT)", id="derotate")
                     yield Checkbox("Wavelength resampling", value=True, id="resample")
                     yield Checkbox("Optical-flow stabilisation", value=True, id="optical_flow")
                     yield Checkbox("Contrast profile", id="contrast")
@@ -139,6 +140,7 @@ if _textual_available():
             cfg.align_patch = self._parse_patch(self.query_one("#align_patch", Input).value)
             cfg.track = self.query_one("#track", Checkbox).value
             cfg.smooth_shifts = self.query_one("#smooth_shifts", Checkbox).value
+            cfg.derotate = self.query_one("#derotate", Checkbox).value
             cfg.resample_wavelength = self.query_one("#resample", Checkbox).value
             cfg.optical_flow = self.query_one("#optical_flow", Checkbox).value
             cfg.contrast = self.query_one("#contrast", Checkbox).value

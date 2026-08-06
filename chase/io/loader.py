@@ -24,7 +24,7 @@ from typing import Optional, Sequence
 import numpy as np
 
 from .. import _compat  # noqa: F401
-from ..calib.spatial import phase_shift
+from ..calib.spatial import derotate_crop, phase_shift
 from ..calib.wavelength import resample_wavelength
 from .download import discover_fits
 
@@ -97,6 +97,7 @@ def load_flare_sequence(
     pad: int = 20,
     resample: bool = True,
     smooth_shifts: bool = True,
+    derotate: bool = False,
     verbose: bool = True,
 ):
     """Load and crop-track a CHASE HA(+FE) sequence from a directory.
@@ -121,6 +122,12 @@ def load_flare_sequence(
         Robust outlier rejection on the tracking shifts (see
         :func:`robust_shifts`). Failed correlations otherwise leave whole
         frames misaligned by their full drift.
+    derotate : bool, optional
+        Rotate every frame to solar north using the header's ``INST_ROT``
+        angle about the disc centre (``CRPIX1``, ``CRPIX2``) before any
+        cropping (default False). CHASE detectors are mounted ~11 deg from
+        solar north; with this on, ``patch`` coordinates refer to the
+        derotated (north-up) frame. See :func:`chase.calib.derotate`.
     verbose : bool, optional
 
     Returns
@@ -163,16 +170,41 @@ def load_flare_sequence(
     px0, px1 = max(0, x0 - pad), min(W_full, x1 + pad)
     oy, ox = y0 - py0, x0 - px0
 
+    inst_rot0 = float(hdr0.get("INST_ROT", 0.0))
+    if derotate and verbose:
+        print(f"   Derotating to solar north: INST_ROT = {inst_rot0:.2f} deg")
+
+    def _chan_win(hdu, ch, ys, ye, xs, xe):
+        """One channel's window, derotated to solar north when requested."""
+        hdr = hdu.header
+        ang = float(hdr.get("INST_ROT", 0.0)) if derotate else 0.0
+        if abs(ang) < 1e-9:
+            return np.asarray(hdu.section[ch, ys:ye, xs:xe], dtype=np.float32)
+        ctr = (float(hdr.get("CRPIX1", hdr["NAXIS1"] / 2)) - 1.0,
+               float(hdr.get("CRPIX2", hdr["NAXIS2"] / 2)) - 1.0)
+        return derotate_crop(np.asarray(hdu.section[ch]), ys, ye, xs, xe, ang, ctr)
+
+    def _cube_win(cube, hdr, ys, ye, xs, xe):
+        """A cube's spatial window, derotated channel by channel if requested.
+        Rotation and crop are composed, so only the window is computed."""
+        ang = float(hdr.get("INST_ROT", 0.0)) if derotate else 0.0
+        if abs(ang) < 1e-9:
+            return cube[:, ys:ye, xs:xe].astype(np.float32)
+        ctr = (float(hdr.get("CRPIX1", cube.shape[2] / 2)) - 1.0,
+               float(hdr.get("CRPIX2", cube.shape[1] / 2)) - 1.0)
+        return np.stack([derotate_crop(cube[k], ys, ye, xs, xe, ang, ctr)
+                         for k in range(cube.shape[0])])
+
     # Reference crop for tracking: prefer FE last wavelength (flare-free).
     # .section reads only the needed tiles from tile-compressed cubes.
     if has_fe:
         with fits.open(fe_names[0], memmap=True) as _h:
-            ref_crop = np.asarray(_h[1].section[-1, ay0:ay1, ax0:ax1], dtype=np.float32)
+            ref_crop = _chan_win(_h[1], -1, ay0, ay1, ax0, ax1)
         if verbose:
             print("   Alignment reference: FE last wavelength (flare-free)")
     else:
         with fits.open(ha_names[0], memmap=True) as _h:
-            ref_crop = np.asarray(_h[1].section[-1, ay0:ay1, ax0:ax1], dtype=np.float32)
+            ref_crop = _chan_win(_h[1], -1, ay0, ay1, ax0, ax1)
         if verbose:
             print("   Alignment reference: HA continuum (FE not available)")
 
@@ -184,7 +216,7 @@ def load_flare_sequence(
         for i in range(nframes):
             track_name = fe_names[i] if has_fe else ha_names[i]
             with fits.open(track_name, memmap=True) as _h:
-                cur = np.asarray(_h[1].section[-1, ay0:ay1, ax0:ax1], dtype=np.float32)
+                cur = _chan_win(_h[1], -1, ay0, ay1, ax0, ax1)
             sy, sx = phase_shift(ref_crop, cur)
             shifts.append((float(sy), float(sx)))
         if smooth_shifts:
@@ -225,7 +257,7 @@ def load_flare_sequence(
             print(f"  Frame {i:>2d}: shift y={sy:+d}, x={sx:+d}")
         cy, cx = oy - sy, ox - sx
 
-        ha_crop = cube_ha[:, py0:py1, px0:px1][:, cy:cy + H, cx:cx + W].astype(np.float32)
+        ha_crop = _cube_win(cube_ha, hdr_ha, py0, py1, px0, px1)[:, cy:cy + H, cx:cx + W]
         if resample:
             ha_crop = resample_wavelength(ha_crop, wav_ha_i, wavelength_ha)
         ha_cubes[i] = ha_crop
@@ -233,11 +265,11 @@ def load_flare_sequence(
         core_raw[i] = ha_cubes[i, core_idx]
 
         if has_bg:
-            bg = cube_ha[:, by0 - sy:by1 - sy, bx0 - sx:bx1 - sx].astype(np.float32)
+            bg = _cube_win(cube_ha, hdr_ha, by0 - sy, by1 - sy, bx0 - sx, bx1 - sx)
             ha_bg[i] = resample_wavelength(bg, wav_ha_i, wavelength_ha) if resample else bg
 
         if has_fe:
-            fe_crop = cube_fe[:, py0:py1, px0:px1][:, cy:cy + H, cx:cx + W].astype(np.float32)
+            fe_crop = _cube_win(cube_fe, hdr_fe, py0, py1, px0, px1)[:, cy:cy + H, cx:cx + W]
             if resample:
                 fe_crop = resample_wavelength(fe_crop, wav_fe_i, wavelength_fe)
             fe_cubes[i] = fe_crop
@@ -270,4 +302,9 @@ def load_flare_sequence(
         "core_idx": core_idx,
         "patch": np.array(patch) if patch is not None else np.array([]),
         "shifts": shifts,
+        "inst_rot": inst_rot0,
+        "derotated": bool(derotate),
+        "crpix": (float(hdr0.get("CRPIX1", W_full / 2)),
+                  float(hdr0.get("CRPIX2", H_full / 2))),
+        "cdelt": float(hdr0.get("CDELT1", 1.04)),
     }

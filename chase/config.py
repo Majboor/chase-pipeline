@@ -38,6 +38,9 @@ class Config:
         Cross-correlation crop tracking (shift-then-crop).
     smooth_shifts : bool
         Robust outlier rejection on the tracking shifts, per scan parity.
+    derotate : bool
+        Rotate frames to solar north using the header INST_ROT angle before
+        cropping; patch coordinates then refer to the north-up frame.
     resample_wavelength : bool
         Per-frame wavelength resampling onto frame 0's grid.
     optical_flow : bool
@@ -74,6 +77,7 @@ class Config:
 
     track: bool = True
     smooth_shifts: bool = True
+    derotate: bool = False
     resample_wavelength: bool = True
     optical_flow: bool = True
     flow_method: str = "tvl1"

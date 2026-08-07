@@ -173,6 +173,13 @@ chase/
 
 ---
 
+## Author
+
+Waleed Ajmal
+ORCID: [https://orcid.org/0009-0006-8222-1983](https://orcid.org/0009-0006-8222-1983)
+
+---
+
 ## 🤝 Acknowledgements
 
 Developed as part of the CHASE calibration project supervised by:
